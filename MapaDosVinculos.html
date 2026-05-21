@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa dos Vínculos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    *, body { font-family: 'Inter', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
+    @keyframes pageIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .page-in { animation: pageIn .22s ease-out both; }
+    textarea { font-family: inherit; resize: vertical; }
+    details summary { list-style: none; cursor: pointer; }
+    details summary::-webkit-details-marker { display: none; }
+    ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+    @media print {
+      body * { visibility: hidden !important; }
+      .print-area, .print-area * { visibility: visible !important; }
+      .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+      .no-print { display: none !important; }
+      @page { margin: 14mm; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo } = React;
+
+// ─── BRAND ────────────────────────────────────────────────────────────────────
+const B = {
+  coralDark:"#D96859", mint:"#A8D8C9", mintDark:"#5C9E8B",
+  cream:"#FFF8F3", ink:"#2F2B2A", soft:"#F6E9E2",
+  rose:"#FCE7E2", sky:"#EDF8F5", amber:"#FFF4D8",
+};
+
+// ─── ICONS ────────────────────────────────────────────────────────────────────
+const SVGS = {
+  Heart:`<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>`,
+  Compass:`<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>`,
+  Users:`<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
+  Shield:`<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>`,
+  Brain:`<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/>`,
+  AlertTriangle:`<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
+  Sparkles:`<path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>`,
+  MessageCircle:`<path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/>`,
+  Wind:`<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>`,
+  HelpCircle:`<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
+  BookOpen:`<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>`,
+  Download:`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`,
+  Printer:`<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>`,
+  Menu:`<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>`,
+  X:`<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>`,
+  Refresh:`<path d="M3 2v6h6"/><path d="M21 12A9 9 0 0 0 6 5.3L3 8"/><path d="M21 22v-6h-6"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/>`,
+  ArrowLeft:`<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>`,
+  ArrowRight:`<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>`,
+};
+
+function Ic({ name, size=22, color="currentColor" }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+      fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      dangerouslySetInnerHTML={{ __html: SVGS[name] || "" }} />
+  );
+}
+
+// ─── MINI UI ──────────────────────────────────────────────────────────────────
+function ProgressBar({ value }) {
+  return (
+    <div className="w-full bg-neutral-200 rounded-full h-2">
+      <div className="h-2 rounded-full transition-all" style={{ width: `${value}%`, backgroundColor: B.mintDark }} />
+    </div>
+  );
+}
+
+function Btn({ children, onClick, disabled, outline, ghost, style={}, className="" }) {
+  const base = "inline-flex items-center justify-center gap-1 rounded-2xl h-12 px-4 text-sm font-semibold cursor-pointer border-0 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed";
+  if (ghost) return <button onClick={onClick} disabled={disabled} style={style} className={`${base} bg-transparent text-neutral-700 hover:bg-neutral-100 ${className}`}>{children}</button>;
+  if (outline) return <button onClick={onClick} disabled={disabled} style={style} className={`${base} bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50 ${className}`}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} style={{ backgroundColor: B.coralDark, color:"white", ...style }} className={`${base} ${className}`}>{children}</button>;
+}
+
+function Badge({ children }) {
+  return <span className="inline-block rounded-full text-xs font-semibold px-3 py-1 mb-2" style={{ backgroundColor: B.mintDark, color:"white" }}>{children}</span>;
+}
+
+function Card({ children }) {
+  return <div className="page-in rounded-[2rem] shadow-lg bg-white"><div className="p-5 sm:p-7">{children}</div></div>;
+}
+
+function SectionHeader({ iconName, badge, title, subtitle }) {
+  return (
+    <div className="flex items-start gap-3 mb-5">
+      <div className="rounded-3xl p-3 shrink-0" style={{ backgroundColor: B.mint }}>
+        <Ic name={iconName} size={28} color={B.ink} />
+      </div>
+      <div>
+        <Badge>{badge}</Badge>
+        <h2 className="text-2xl font-bold leading-tight" style={{ color: B.ink }}>{title}</h2>
+        {subtitle && <p className="text-sm text-neutral-600 mt-1 leading-relaxed">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
+function Textarea({ value, onChange, placeholder, minH="90px" }) {
+  return (
+    <textarea value={value} onChange={onChange} placeholder={placeholder}
+      className="mt-2 w-full rounded-3xl border border-neutral-200 p-4 outline-none bg-white text-sm"
+      style={{ minHeight: minH }} />
+  );
+}
+
+function Saved() {
+  return <p className="text-sm mt-2" style={{ color: B.mintDark }}>Registrado para o relatório final.</p>;
+}
+
+function addRecord(setRecords, record) {
+  setRecords(prev => [...prev, { ...record, createdAt: new Date().toLocaleString("pt-BR") }]);
+}
+
+// ─── DADOS: TRILHAS ───────────────────────────────────────────────────────────
+const focusTracks = {
+  grossa: {
+    title:"Sou vista como grossa", short:"Direta x dura",
+    definition:"Ser vista como grossa pode acontecer quando a mensagem chega com pouca suavidade relacional: frase curta, tom seco, timing ruim, pouca validação ou pouca abertura para o outro.",
+    not:"Não é o mesmo que ser honesta, ter opinião, dizer não ou ser direta. O ponto não é apagar sua voz — é ajustar forma, timing e cuidado.",
+    why:"Em modo ameaça, a mente tende a cortar ambiguidade e ir direto ao ponto. Isso protege no curto prazo, mas pode soar como rejeição ou desprezo.",
+    healthy:"Comunicação direta com cuidado: dizer o que pensa ou precisa sem desqualificar a pessoa, o momento ou a proposta.",
+    micro:"Antes de responder, acrescentar uma ponte: 'entendo', 'para mim funciona diferente', 'posso falar minha preferência?'.",
+    pbl:[
+      { scenario:"Uma amiga sugere um lugar para sair. Você responde: 'Não. Esse lugar é péssimo'. O grupo fica quieto.", prompts:["O que foi comunicado além do conteúdo?","Como isso pode ter chegado na outra pessoa?","Como dizer a mesma preferência com mais cuidado?"], model:"Eu não curto muito esse lugar. Podemos pensar em outra opção?" },
+      { scenario:"Uma colega apresenta uma ideia no trabalho. Antes que ela termine, você diz: 'Isso não vai funcionar'. Ela para de falar.", prompts:["O que você cortou, além da frase?","Qual foi o impacto no espaço dela de contribuir?","Como dar feedback sem interromper?"], model:"Posso colocar uma dúvida quando você terminar?" },
+      { scenario:"Sua parceira pede para você mudar o tom. Você responde: 'Eu sou assim. Se não agrada, problema seu'.", prompts:["Essa frase fecha ou abre conversa?","O que está sendo protegido com essa resposta?","Como discordar do pedido sem encerrar o diálogo?"], model:"Eu não percebi meu tom assim, mas quero entender o que te incomodou antes de discordar." },
+    ],
+  },
+  impulsiva: {
+    title:"Respondo no impulso", short:"Impulso x escolha",
+    definition:"Impulsividade relacional é quando o corpo responde antes de a mente avaliar impacto, timing e alternativa.",
+    not:"Não é falta de caráter nem prova de que você não se importa. É um sinal de ativação e de pouca margem para pausa naquele momento.",
+    why:"Respostas rápidas ajudam em perigo real, mas conversas são complexas. Responder rápido demais pode tratar ambiguidade como ameaça.",
+    healthy:"Pausa ativa: perceber o impulso, nomear o estado e criar escolha.",
+    micro:"Frase de pausa: 'Eu quero responder melhor do que meu impulso agora. Preciso de um minuto'.",
+    pbl:[
+      { scenario:"Alguém critica seu tom. Você sente calor, maxilar tenso e vontade de responder: 'Você sempre interpreta tudo mal'.", prompts:["Quais sinais corporais indicam ativação?","Qual vulnerabilidade foi tocada?","Que pausa poderia evitar o ataque?"], model:"Isso me ativou. Quero entender, mas preciso de um minuto para responder melhor." },
+      { scenario:"Uma mensagem com emoji que parece irônico chega às 22h. Antes de pensar, você responde: 'Entendi o recado. Pode esquecer'.", prompts:["Você checou se a ironia era intencional?","Qual foi a interpretação automática?","Como checar antes de concluir?"], model:"Achei que o emoji tinha ironia — entendi errado ou era isso mesmo?" },
+      { scenario:"Uma amiga cancela planos de última hora. Em 5 minutos você manda 4 mensagens em sequência.", prompts:["O que o volume de mensagens comunicou?","Qual estado interno gerou a urgência?","Como expressar a decepção com espaço?"], model:"Fiquei chateada com o cancelamento. Quando puder, queria entender o que aconteceu." },
+    ],
+  },
+  desprezo: {
+    title:"Posso soar como se desprezasse", short:"Discordar x desprezar",
+    definition:"Desprezo é quando a comunicação passa superioridade: 'eu estou acima, você está abaixo'. Pode aparecer em deboche, ironia, risada de canto ou frases que ridicularizam.",
+    not:"Não é o mesmo que discordar, não gostar de uma ideia ou ter senso crítico. Discordância fala da ideia; desprezo atinge o valor da pessoa.",
+    why:"Quando a vulnerabilidade ativa vergonha ou medo de parecer inferior, diminuir o outro pode dar uma sensação rápida de poder.",
+    healthy:"Discordância respeitosa: manter firmeza sem humilhar, ridicularizar ou tratar o outro como inferior.",
+    micro:"Trocar 'nada a ver' por 'eu vejo diferente' ou 'quero entender como você chegou nisso'.",
+    pbl:[
+      { scenario:"Uma amiga dá uma opinião. Você ri e diz: 'Nossa, não acredito que você pensa assim'. Ela fica quieta.", prompts:["Isso foi discordância ou desprezo?","Que sinal de hierarquia apareceu?","Como discordar preservando dignidade?"], model:"Eu vejo diferente. Posso te contar como penso?" },
+      { scenario:"Um colega apresenta uma solução que você acha óbvia. Você dá um sorriso e diz: 'Já tentaram isso. Não funciona'.", prompts:["Qual foi o impacto do sorriso combinado à frase?","Ele recebeu crítica à ideia ou a ele?","Como seria um feedback que preserva?"], model:"Essa abordagem já apareceu antes e travou. Posso contar o que funcionou diferente?" },
+      { scenario:"Uma pessoa de quem você gosta discorda de você em público. Você vira para o grupo e diz: 'Viu? Sempre assim'.", prompts:["O que 'sempre assim' comunica sobre o valor dela?","O que você perdeu ao expor em público?","Como responder à discordância sem plateia?"], model:"Posso te responder em particular? Quero ter essa conversa com cuidado." },
+    ],
+  },
+  agressiva: {
+    title:"Sou vista como agressiva", short:"Raiva x ataque",
+    definition:"Agressividade relacional aparece quando a comunicação ameaça, intimida, acusa, ataca ou tenta vencer a conversa.",
+    not:"Não é o mesmo que sentir raiva. Raiva é emoção e pode sinalizar limite ou dor. Agressividade é uma forma de agir que pode machucar o vínculo.",
+    why:"Na CFT, a raiva pode ser entendida como ativação do sistema de ameaça. Ela estreita a atenção e aumenta a urgência de responder.",
+    healthy:"Assertividade compassiva: proteger sua dignidade sem atacar a dignidade do outro.",
+    micro:"Pergunta-chave: 'O que essa raiva tenta proteger, e como posso proteger isso sem atacar?'.",
+    pbl:[
+      { scenario:"Uma pessoa diz que sua fala machucou. Você sente vergonha e responde: 'Você que é sensível demais'.", prompts:["Que vulnerabilidade apareceu?","Como a raiva tentou proteger?","Como validar impacto sem se humilhar?"], model:"Minha intenção era outra, mas quero entender o impacto do que eu disse." },
+      { scenario:"Alguém questiona sua decisão com tom que parece condescendente. Você diz: 'Ninguém te pediu opinião'.", prompts:["O que no tom te ativou?","Essa resposta abriu ou fechou o diálogo?","Como reagir ao tom sem atacar?"], model:"Eu me senti questionada de um jeito que não gostei. Posso te contar meu raciocínio?" },
+      { scenario:"No meio de uma discussão, sua parceira pede espaço: 'Preciso de 10 minutos'. Você responde: 'Vai embora então'.", prompts:["O que o pedido de pausa significou para você?","Qual resposta preservaria o vínculo?","Como tolerar a espera?"], model:"Tudo bem. Me avisa quando estiver pronta para continuar." },
+    ],
+  },
+  invasiva: {
+    title:"Posso invadir o espaço do outro", short:"Aproximar x pressionar",
+    definition:"Invasão relacional acontece quando a urgência de resolver, receber resposta ou obter segurança ultrapassa o ritmo e o limite da outra pessoa.",
+    not:"Não é o mesmo que querer proximidade, pedir clareza ou desejar reparação. O ponto é se existe espaço real para o outro pensar, sentir, responder depois ou dizer não.",
+    why:"Quando a incerteza parece perigosa, a mente pode confundir espera com abandono e limite do outro com rejeição.",
+    healthy:"Pedido com espaço: dizer o que precisa e perguntar se o outro tem disponibilidade.",
+    micro:"Antes de insistir, perguntar: 'Existe espaço real para a pessoa dizer não ou responder depois?'.",
+    pbl:[
+      { scenario:"Você percebe uma amiga distante e manda várias mensagens pedindo explicação imediata.", prompts:["Qual vulnerabilidade foi ativada?","O que é pedido e o que vira pressão?","Como checar sem invadir?"], model:"Percebi você distante e fiquei insegura. Quando puder, queria checar se está tudo bem entre nós." },
+      { scenario:"Você convidou um amigo para algo importante. Ele não respondeu em 3 horas. Você manda: 'Qual é? Não custa responder'.", prompts:["Quais interpretações você já concluiu?","O que o tom acusa sem saber?","Como pedir atenção sem punir?"], model:"Ainda estou aguardando resposta. Se não der para ir, tudo bem — só queria saber." },
+      { scenario:"Sua parceira disse que precisa pensar. 30 minutos depois você manda: 'Então? Decidiu?'.", prompts:["O que a espera estava significando para você?","Qual espaço você deu de fato?","Como tolerar a pausa?"], model:"Fico aqui quando estiver pronta. Sem pressa." },
+    ],
+  },
+  controle: {
+    title:"Tento controlar/manipular conversas", short:"Segurança x controle",
+    definition:"Controle relacional é tentar reduzir incerteza conduzindo, testando, pressionando, provocando culpa ou buscando garantias indiretas.",
+    not:"Não é o mesmo que pedir clareza, combinar limites ou expressar necessidades. O controle aparece quando a outra pessoa perde espaço real de escolha.",
+    why:"Quando vulnerabilidade e incerteza parecem perigosas, controlar dá sensação temporária de segurança — mas pode ser interpretado como manipulação.",
+    healthy:"Pedido direto e tolerância à incerteza: falar do que precisa sem criar armadilha relacional.",
+    micro:"Trocar teste por pedido: 'Eu queria saber se está tudo bem entre nós'.",
+    pbl:[
+      { scenario:"Você quer saber se uma pessoa se importa, então pensa em se afastar para ver se ela vem atrás.", prompts:["Qual medo está por baixo?","Qual é o teste indireto?","Qual pedido direto seria possível?"], model:"Estou insegura e queria pedir um pouco de clareza, sem te testar." },
+      { scenario:"Você conta uma informação para uma amiga só para ver se ela vai mencionar depois — e fica observando.", prompts:["O que você está tentando descobrir indiretamente?","O que o teste custa para a amizade?","Como perguntar direto?"], model:"Tenho pensado se você se lembra das coisas que te conto. Posso perguntar isso diretamente?" },
+      { scenario:"Você se sente desapontada por alguém. Em vez de falar, começa a responder frio para ver se ela percebe.", prompts:["Essa estratégia costuma funcionar?","O que pode acontecer se ela não perceber?","Como nomear o que você quer?"], model:"Fiquei desapontada com o que aconteceu e não quis falar logo. Posso te contar agora?" },
+    ],
+  },
+  vez: {
+    title:"Tenho dificuldade de dar a vez", short:"Explicar x trocar",
+    definition:"Dificuldade de dar a vez acontece quando a conversa fica centrada em explicar, corrigir ou garantir que a própria intenção foi entendida.",
+    not:"Não é o mesmo que gostar de falar, ter muito conteúdo ou querer ser compreendida. O ponto é a conversa perder reciprocidade.",
+    why:"Quando não ser entendida parece perigoso, a mente tenta explicar mais. Mas explicar demais pode impedir justamente a escuta do outro.",
+    healthy:"Reciprocidade: alternar falar, pausar, perguntar, escutar, validar e compartilhar.",
+    micro:"Depois de falar por um tempo, perguntar: 'como isso chegou para você?'.",
+    pbl:[
+      { scenario:"Você explica por vários minutos. Quando a pessoa tenta falar, você interrompe para corrigir um detalhe.", prompts:["O que você está tentando proteger?","O que a outra pessoa pode sentir?","Como devolver espaço?"], model:"Eu falei bastante. Quero ouvir como isso chegou para você antes de continuar." },
+      { scenario:"Uma amiga começa a contar algo difícil. Você rapidamente fala: 'Comigo aconteceu a mesma coisa' e assume a narrativa.", prompts:["O que foi interrompido?","O que a amiga pode ter sentido?","Como acolher antes de compartilhar?"], model:"Quero ouvir mais antes de contar o que passei. O que aconteceu?" },
+      { scenario:"Em um conflito, a outra pessoa começa a contar a versão dela. Você interrompe para corrigir um fato que 'não foi assim'.", prompts:["O que você precisa tanto que seja ouvida agora?","Qual o custo de corrigir ao invés de escutar?","Como proteger sua versão sem travar a conversa?"], model:"Deixa eu ouvir sua versão completa. Depois posso contar como foi para mim." },
+    ],
+  },
+  vulnerabilidade: {
+    title:"Tenho medo de ficar vulnerável", short:"Vulnerabilidade x perigo",
+    definition:"Vulnerabilidade é estar em uma relação sem controlar totalmente o resultado: como o outro vai responder, entender, escolher ou se afastar.",
+    not:"Não é se expor sem limite, contar tudo ou aceitar qualquer coisa. Vulnerabilidade saudável tem ritmo, escolha, limite e cuidado.",
+    why:"Se experiências relacionais ensinaram que se abrir leva a crítica ou humilhação, a mente pode tentar se proteger controlando, atacando ou se fechando.",
+    healthy:"Coragem com cuidado: dizer uma parte verdadeira, no momento possível, respeitando limites.",
+    micro:"Perguntar: 'O que está sem garantia aqui, e qual recurso eu tenho mesmo sem garantia?'.",
+    pbl:[
+      { scenario:"Você quer pedir segurança, mas teme parecer carente. Surge vontade de fazer uma piada ácida ou sumir.", prompts:["Qual vulnerabilidade existe aqui?","Qual defesa quer aparecer?","Como pedir segurança sem controlar?"], model:"Eu percebi uma distância e fiquei insegura. Está tudo bem entre a gente? Pode me responder quando tiver espaço." },
+      { scenario:"Você sentiu falta de uma amiga a semana toda, mas quando ela pergunta como você está, você responde: 'Tava ocupada. Normal'.", prompts:["O que foi escondido ali?","O que a faz não conseguir dizer que sentiu falta?","Como dar um passo pequeno de abertura?"], model:"Na real, senti falta de você essa semana." },
+      { scenario:"Você estava prestes a contar algo difícil para alguém importante, mas na hora mudou de assunto.", prompts:["O que surgiu que fez você mudar?","Qual era o risco real de contar?","Como dar um passo mínimo de abertura?"], model:"Eu ia contar uma coisa mas travei. Posso tentar de novo se você tiver espaço?" },
+    ],
+  },
+};
+
+// ─── MODOS DE SOBREVIVÊNCIA ───────────────────────────────────────────────────
+const survivalModes = [
+  { name:"Ataque", vulnerability:"Medo de ser diminuída ou atacada", impact:"Pode soar como agressividade ou intimidação", alternative:"Isso me ativou. Preciso de um minuto." },
+  { name:"Desprezo", vulnerability:"Medo de parecer inferior ou sem valor", impact:"Pode soar como deboche ou humilhação", alternative:"Eu vejo diferente. Posso explicar sem te diminuir?" },
+  { name:"Controle", vulnerability:"Medo de incerteza ou perda de segurança", impact:"Pode soar como pressão ou manipulação", alternative:"Estou insegura e queria pedir clareza." },
+  { name:"Invasão / urgência", vulnerability:"Medo de esperar ou ser esquecida", impact:"Pode soar como sufocamento", alternative:"Você tem espaço agora ou combinamos outro momento?" },
+  { name:"Congelamento", vulnerability:"Medo de errar ou sentir demais", impact:"Pode soar como indiferença ou frieza", alternative:"Eu travei. Preciso de tempo e retomo depois." },
+  { name:"Teste indireto", vulnerability:"Medo de não ser importante ou escolhida", impact:"Pode soar como frieza calculada ou provocação", alternative:"Quero pedir segurança sem te testar." },
+  { name:"Ocupar espaço", vulnerability:"Medo de não ser entendida ou levada a sério", impact:"Pode soar como não dar a vez", alternative:"Falei bastante. Quero te ouvir também." },
+];
+
+// ─── COMPARAÇÃO ───────────────────────────────────────────────────────────────
+const compareData = [
+  { situation:"Quando se sente atacada", vulnerability:"Medo de ser colocada no papel de errada", competitive:'"Você sempre exagera. Não fiz nada demais."', cooperative:'"Isso me ativou. Preciso de um minuto antes de responder."' },
+  { situation:"Quando se sente inferior", vulnerability:"Medo de perder status ou respeito", competitive:'"Não acredito que você pensa assim. Que ingenuidade."', cooperative:'"Eu vejo diferente. Posso te contar minha perspectiva?"' },
+  { situation:"Quando sente incerteza", vulnerability:"Medo de não importar o suficiente", competitive:'"Se não vai responder, esquece então."', cooperative:'"Estou insegura e queria saber se está tudo bem entre nós."' },
+  { situation:"Quando sente urgência", vulnerability:"Medo de esperar e ser esquecida", competitive:'"Então você não liga. Já entendi."', cooperative:'"Você tem espaço pra essa conversa agora ou combinamos outro momento?"' },
+  { situation:"Quando sente vergonha", vulnerability:"Medo de reconhecer impacto", competitive:'"Você é sensível demais. Eu estava brincando."', cooperative:'"Minha intenção era outra, mas quero entender o que te magoou."' },
+  { situation:"Quando não é entendida", vulnerability:"Medo de não ser levada a sério", competitive:'"Você nunca entende o que eu digo. Deixa pra lá."', cooperative:'"Acho que não me expressei bem. Posso tentar de novo?"' },
+];
+
+// ─── REGULAÇÃO ────────────────────────────────────────────────────────────────
+const regulacaoExercises = [
+  { title:"Pausa de 5 segundos", when:"Antes de responder quando você está ativada", steps:["Perceba o impulso de responder.","Conte mentalmente até 5.","Pergunte: 'o que eu quero proteger aqui?'","Escolha como responder."], anchor:"Cinco segundos entre o impulso e a resposta." },
+  { title:"Aterramento pelo corpo", when:"Quando sentir urgência, calor ou tensão física", steps:["Sinta os pés no chão.","Pressione levemente as mãos nas coxas.","Respire fundo e solte devagar.","Nomeie 3 coisas que você vê ao redor."], anchor:"O corpo encontra equilíbrio quando você dá um sinal de segurança." },
+  { title:"Nomeação do estado", when:"Para reduzir a intensidade emocional antes de falar", steps:["Identifique o que está sentindo: raiva, medo, vergonha, urgência?","Nomeie em voz baixa ou por escrito.","Pergunte: 'qual vulnerabilidade esse estado está protegendo?'"], anchor:"Nomear o estado reduz a intensidade e cria espaço." },
+  { title:"Frase de pausa relacional", when:"Para usar com a outra pessoa antes de responder impulsivamente", steps:["'Preciso de um minuto para responder melhor.'","'Estou ativada. Posso voltar nisso daqui a pouco?'","'Não quero responder agora e me arrepender. Retomo em breve.'"], anchor:"Pedir pausa é uma habilidade relacional — não fraqueza." },
+];
+
+// ─── PISTAS SOCIAIS ───────────────────────────────────────────────────────────
+const cueExamples = [
+  ["A pessoa demorou para responder","A resposta não veio ainda","Pode estar ocupada, cansada, pensando ou distante","Quando puder, queria checar se está tudo bem entre nós."],
+  ["A pessoa fez expressão séria","O rosto pareceu sério","Pode ser irritação, concentração, cansaço ou dúvida","Percebi sua expressão mais séria. Você ficou incomodada ou entendi errado?"],
+  ["A pessoa discordou em público","Ela apresentou outra opinião","Pode ser contribuição, crítica ou disputa","Eu senti isso como exposição, mas queria entender sua intenção."],
+  ["A pessoa pediu tempo","Ela não quer conversar agora","Pode ser limite, cansaço ou necessidade de pensar","Tudo bem. Você prefere retomar quando?"],
+];
+
+// ─── PSICOEDUCAÇÃO ────────────────────────────────────────────────────────────
+const learnContent = {
+  vinculos: {
+    subtitle:"O cérebro social leva relações a sério porque humanos sobreviveram em grupo.",
+    blocks:[["Somos uma espécie social","Pertencer a grupos aumentava proteção, cuidado, aprendizagem e cooperação. Por isso, nosso cérebro monitora aceitação, rejeição, respeito e ameaça — mesmo quando não há perigo real."],["Status e dignidade","Ser respeitada e levada a sério pode parecer profundamente importante. Sinais de humilhação ou desprezo podem acender defesa com muita rapidez."],["Cooperação também é sobrevivência","Não sobrevivemos apenas competindo. Também sobrevivemos por cuidado, reciprocidade, reparo, comunicação e cooperação. Essas capacidades também estão em você."]],
+    key:"O cérebro social pergunta: estou segura, respeitada e incluída aqui?",
+    prompt:"Quais sinais sociais mais ativam meu corpo?",
+  },
+  vulnerabilidade: {
+    subtitle:"Relações envolvem não controlar totalmente o resultado.",
+    blocks:[["O que é vulnerabilidade?","É estar em uma relação sem ter garantia total de como o outro vai responder, entender, escolher ou permanecer. Toda relação tem esse risco — sem exceção."],["Vulnerabilidade saudável tem limite","Não é contar tudo ou aceitar qualquer coisa. É escolher momento, pessoa, intensidade e forma. Você decide quanto, com quem e quando."],["Não ter garantias ativa defesas","Quando a incerteza parece perigosa, a mente pode controlar, atacar, testar, se afastar, congelar ou explicar demais. São tentativas de proteger — com um custo relacional."]],
+    key:"Não ter garantia não significa estar sem recursos.",
+    prompt:"Em qual situação eu mais tento controlar para não ficar vulnerável?",
+  },
+  historia: {
+    subtitle:"Experiências relacionais difíceis podem ensinar o corpo a esperar ameaça.",
+    blocks:[["O corpo aprende com relações","Críticas, invalidação, humilhação, rejeição, abandono, controle ou comunicação agressiva podem ensinar vigilância. O sistema nervoso aprende com o que aconteceu — mesmo que já tenha passado."],["A família pode ensinar um idioma emocional","Se conflito era vivido com ataque, ironia, explosão ou controle, isso pode parecer natural depois. Não porque é quem você é, mas porque foi o que foi ensinado."],["Familiar não significa fixo","Um modo antigo pode parecer personalidade, mas é um padrão aprendido. Padrões aprendidos podem ser revisados, com tempo e prática."]],
+    key:"A pergunta muda de 'o que há de errado comigo?' para 'o que meu sistema aprendeu para me proteger?'.",
+    prompt:"Que situações costumam colocar meu corpo em guarda?",
+  },
+  vergonha: {
+    subtitle:"A mente social monitora valor, lugar e respeito.",
+    blocks:[["Status não é só vaidade","Status envolve lugar, valor, reputação e pertencimento. Sentir-se colocada abaixo pode acender defesa muito rapidamente — não porque você é orgulhosa, mas porque seu sistema monitora isso como sobrevivência."],["Vergonha externa","É o medo de como os outros me veem: agressiva, ridícula, inadequada, exagerada ou difícil. Esse medo pode fazer a mente agir rápido demais."],["Vergonha interna","É quando a avaliação passa a ser sobre mim, não sobre o que fiz: 'eu sou o problema', 'sou insuportável'. Esse tipo de vergonha é muito difícil de carregar."],["Culpa reparadora x vergonha paralisante","Culpa diz: 'o que eu fiz teve impacto, e posso cuidar disso'. Vergonha diz: 'eu sou defeituosa'. A culpa pode orientar reparo. A vergonha tende a gerar ataque, fuga ou autocrítica."]],
+    key:"Às vezes, a reação forte é sobre sentir que perdi valor ou lugar no vínculo.",
+    prompt:"Quando sou criticada, vou mais para culpa reparadora ou vergonha?",
+  },
+  mentes: {
+    subtitle:"A conversa pode virar disputa ou tentativa de cuidado e clareza.",
+    blocks:[["Mente competitiva","Monitora quem venceu, quem perdeu, quem está acima e quem precisa se defender. Discordância parece ataque, demora parece rejeição, crítica parece rebaixamento."],["Quando a conversa vira ranking","A mente competitiva transforma a conversa em um jogo de perder ou ganhar. Esse estado não surgiu do nada — surgiu de experiências que ensinaram que você precisa se proteger."],["Mente compassiva / cooperativa","Protege dignidade com firmeza e cuidado: como cuidar do que importa sem atacar, humilhar ou invadir?"],["Cooperação não é se apagar","Permite dizer não, discordar, pedir reparação e colocar limites preservando a dignidade das duas pessoas."]],
+    key:"A mudança não é sair de raiva para submissão; é sair de ameaça competitiva para firmeza compassiva.",
+    prompt:"Em conflitos, entro mais em vencer/provar/controlar ou entender/proteger/reparar?",
+  },
+  frustracao: {
+    subtitle:"Sentir frustração é humano; o que fazemos com ela faz diferença no vínculo.",
+    blocks:[["Frustração","Aparece quando a realidade não faz o que eu queria: alguém diz não, discorda, demora, pede espaço ou não entende. É desconforto — não emergência."],["Ataque como tentativa de controle","Diminuir, criticar, ironizar ou humilhar alivia rápido — mas costuma afastar as pessoas e não resolve o que estava por baixo."],["Por que diminuir dá alívio momentâneo?","Colocar o outro abaixo pode reduzir a sensação de vulnerabilidade por alguns segundos. Não é maldade — é uma resposta aprendida a um estado intolerável."],["Tolerar frustração","Não é gostar do que aconteceu nem se calar. É sentir desconforto sem atacar, invadir ou controlar. Essa tolerância se constrói com prática."],["Regulação antes da resposta","Pausar, respirar, sentir os pés, relaxar a mandíbula, beber água ou pedir tempo cria uma janela de escolha entre o impulso e a ação."]],
+    key:"A frustração pede cuidado e regulação. O ataque alivia rápido, mas pode destruir segurança.",
+    prompt:"Quando fico frustrada, meu impulso é criticar, diminuir, insistir, sumir, explicar demais ou pedir com clareza?",
+  },
+  repair: {
+    subtitle:"Reconhecer impacto sem se humilhar.",
+    blocks:[["1. Reconhecer","Eu percebo que minha reação foi intensa — e que isso pode ter machucado você."],["2. Nomear sem justificar em excesso","Eu me senti ativada, mas entendo que minha forma pode ter gerado impacto, independente da intenção."],["3. Validar impacto","Imagino que tenha sido difícil ouvir isso daquele jeito."],["4. Assumir responsabilidade","Quero cuidar melhor da forma como me comunico, mesmo quando estou ativada."],["5. Propor nova tentativa","Podemos tentar de novo com mais calma?"]],
+    key:"Reparar é trocar vergonha por responsabilidade. Não é se humilhar — é cuidar do vínculo.",
+    prompt:"Existe uma frase de reparação que quero treinar?",
+  },
+};
+
+// ─── CAPÍTULOS ────────────────────────────────────────────────────────────────
+const chapters = [
+  { id:"home",          type:"home",      title:"Mapa dos Vínculos",                    icon:"Heart" },
+  { id:"focus",         type:"focus",     title:"1 · Escolha seu foco",                 icon:"Compass" },
+  { id:"vinculos",      type:"learn",     title:"2 · Por que vínculos importam?",       icon:"Users" },
+  { id:"vulnerabilidade",type:"learn",    title:"3 · Vulnerabilidade",                  icon:"Heart" },
+  { id:"garantias",     type:"practice",  title:"4 · Não ter garantias",                icon:"Shield" },
+  { id:"historia",      type:"learn",     title:"5 · Quando vulnerabilidade parece perigo", icon:"Brain" },
+  { id:"vergonha",      type:"learn",     title:"6 · Status e vergonha",               icon:"AlertTriangle" },
+  { id:"mentes",        type:"learn",     title:"7 · Mente competitiva x cooperativa",  icon:"Sparkles" },
+  { id:"compare",       type:"compare",   title:"8 · Comparando respostas",             icon:"MessageCircle" },
+  { id:"modes",         type:"modes",     title:"9 · Modos de sobrevivência",           icon:"AlertTriangle" },
+  { id:"regulacao",     type:"regulacao", title:"10 · Regulação no momento",            icon:"Wind" },
+  { id:"frustracao",    type:"learn",     title:"11 · Frustração não é ataque",         icon:"Shield" },
+  { id:"cues",          type:"cues",      title:"12 · Pistas sociais",                  icon:"HelpCircle" },
+  { id:"cases",         type:"cases",     title:"13 · PBL do meu foco",                 icon:"BookOpen" },
+  { id:"map",           type:"map",       title:"14 · Meu mapa relacional",             icon:"Compass" },
+  { id:"repair",        type:"learn",     title:"15 · Reparo",                          icon:"Heart" },
+  { id:"report",        type:"report",    title:"16 · Relatório",                       icon:"Download" },
+];
+
+// ─── TELAS ────────────────────────────────────────────────────────────────────
+function Home({ onNext }) {
+  return (
+    <Card>
+      <SectionHeader iconName="Heart" badge="psicoeducação interativa" title="Mapa dos Vínculos" subtitle="Vulnerabilidade, defesa e conexão nas relações." />
+      <p className="text-base leading-relaxed text-neutral-700">
+        Este material foi pensado para ajudar você a entender por que relações às vezes ativam defesa, como reconhecer o que acontece no seu corpo e nas conversas, e como treinar respostas com mais clareza, cuidado e coragem.
+      </p>
+      <div className="rounded-3xl p-4 mt-4" style={{ backgroundColor: B.soft }}>
+        <p className="font-semibold" style={{ color: B.ink }}>Ideia central</p>
+        <p className="text-sm leading-relaxed text-neutral-700 mt-1">
+          Relações sempre envolvem alguma vulnerabilidade. Quando a vulnerabilidade parece perigosa, a mente tenta se proteger: controlar, atacar, testar, se afastar ou se fechar. Esses são modos de sobrevivência — não falhas de caráter. O trabalho é reconhecer o modo, entender o que ele tenta proteger e escolher uma resposta com mais espaço.
+        </p>
+      </div>
+      <div className="rounded-3xl p-4 mt-3" style={{ backgroundColor: B.sky }}>
+        <p className="text-sm text-neutral-600 leading-relaxed">
+          <b style={{ color: B.ink }}>Como usar:</b> navegue pelos módulos no seu ritmo, responda as perguntas com honestidade e leve o relatório final para a sessão.
+        </p>
+      </div>
+      <Btn onClick={onNext} className="w-full mt-5">
+        Começar <Ic name="ArrowRight" size={18} color="white" />
+      </Btn>
+    </Card>
+  );
+}
+
+function Focus({ selectedGoal, setSelectedGoal, setRecords }) {
+  const track = selectedGoal ? focusTracks[selectedGoal] : null;
+  const [answers, setAnswers] = useState({});
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    if (!track) return;
+    addRecord(setRecords, { type:"trilha personalizada", module:"Escolha seu foco", prompt:"Foco escolhido", answer:track.title, feedback:`${track.definition}\nNão é: ${track.not}\nMicro-habilidade: ${track.micro}` });
+    track.pbl.forEach((item, idx) => addRecord(setRecords, { type:"PBL da trilha", module:track.title, prompt:item.scenario, answer:answers[idx]||"Sem resposta", feedback:`Modelo possível: ${item.model}` }));
+    setSaved(true);
+  }
+
+  return (
+    <Card>
+      <SectionHeader iconName="Compass" badge="trilha adaptativa" title="1 · Escolha seu foco" subtitle="A trilha se adapta ao que você quer entender agora." />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {Object.entries(focusTracks).map(([id, item]) => (
+          <button key={id} onClick={() => { setSelectedGoal(id); setAnswers({}); setSaved(false); }}
+            className="text-left rounded-3xl border-2 p-4 bg-white transition"
+            style={{ borderColor: selectedGoal===id ? B.mintDark : "#e5e7eb" }}>
+            <p className="font-bold" style={{ color: B.ink }}>{item.title}</p>
+            <p className="text-xs text-neutral-500 mt-1">{item.short}</p>
+          </button>
+        ))}
+      </div>
+
+      {track && (
+        <div className="mt-5 space-y-4">
+          <div className="rounded-3xl p-4" style={{ backgroundColor: B.cream }}>
+            <h3 className="font-bold text-lg" style={{ color: B.ink }}>{track.title}</h3>
+            {[["O que é", track.definition],["O que não é", track.not],["Por que pode acontecer", track.why],["Contraponto saudável", track.healthy],["Micro-habilidade", track.micro]].map(([label, val]) => (
+              <p key={label} className="mt-2 text-neutral-700"><b>{label}:</b> {val}</p>
+            ))}
+          </div>
+          <div className="rounded-3xl p-3" style={{ backgroundColor: B.sky }}>
+            <p className="font-bold" style={{ color: B.ink }}>Exercícios PBL</p>
+            <p className="text-sm text-neutral-600 mt-1">Leia a situação, responda e compare com o modelo possível.</p>
+          </div>
+          {track.pbl.map((item, idx) => (
+            <div key={idx} className="rounded-3xl border border-neutral-100 p-4">
+              <p className="font-bold" style={{ color: B.ink }}>Situação {idx + 1}</p>
+              <p className="text-neutral-700 mt-2 leading-relaxed">{item.scenario}</p>
+              <ul className="mt-3 space-y-1 text-sm text-neutral-600 list-disc pl-5">
+                {item.prompts.map(p => <li key={p}>{p}</li>)}
+              </ul>
+              <Textarea value={answers[idx]||""} onChange={e => setAnswers(prev => ({...prev,[idx]:e.target.value}))} placeholder="Minha resposta/reflexão..." minH="88px" />
+              <details className="mt-3 rounded-2xl p-3" style={{ backgroundColor: B.cream }}>
+                <summary className="font-semibold" style={{ color: B.coralDark }}>Ver modelo possível</summary>
+                <p className="text-neutral-700 mt-2">"{item.model}"</p>
+              </details>
+            </div>
+          ))}
+          <Btn onClick={save} className="w-full">Registrar trilha no relatório</Btn>
+          {saved && <Saved />}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Learn({ chapter, setRecords }) {
+  const data = learnContent[chapter.id];
+  const [note, setNote] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    addRecord(setRecords, { type:"reflexão psicoeducativa", module:chapter.title, prompt:data.prompt, answer:note||"Sem anotação", feedback:data.key });
+    setSaved(true);
+  }
+
+  return (
+    <Card>
+      <SectionHeader iconName={chapter.icon} badge="aprender" title={chapter.title} subtitle={data.subtitle} />
+      <div className="space-y-3">
+        {data.blocks.map(([heading, body], idx) => (
+          <div key={heading} className="rounded-3xl p-4" style={{ backgroundColor: idx%2===0 ? B.cream : B.sky }}>
+            <h3 className="font-bold text-base" style={{ color: B.ink }}>{heading}</h3>
+            <p className="text-neutral-700 leading-relaxed mt-1 text-sm">{body}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 rounded-3xl p-4" style={{ backgroundColor: B.rose }}>
+        <p className="font-bold" style={{ color: B.ink }}>Para guardar</p>
+        <p className="text-neutral-700 leading-relaxed mt-1 text-sm">{data.key}</p>
+      </div>
+      <label className="block mt-5">
+        <span className="font-semibold text-sm" style={{ color: B.ink }}>{data.prompt}</span>
+        <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Escreva uma palavra, exemplo, dúvida ou frase que quer levar para a sessão." minH="100px" />
+      </label>
+      <Btn outline onClick={save} className="w-full mt-3">Registrar no relatório</Btn>
+      {saved && <Saved />}
+    </Card>
+  );
+}
+
+function Practice({ setRecords }) {
+  const prompts = [
+    "Eu não tenho garantia de que a pessoa vai me entender, mas posso...",
+    "Eu não tenho garantia de que a pessoa vai concordar, mas posso...",
+    "Eu não tenho garantia de que a pessoa vai responder agora, mas posso...",
+    "Eu não tenho garantia de que reparar vai resolver tudo, mas posso...",
+    "Eu não tenho garantia de que serei escolhida por todos, mas isso não significa...",
+  ];
+  const [answers, setAnswers] = useState({});
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    prompts.forEach((p, idx) => addRecord(setRecords, { type:"treino de tolerância relacional", module:"Não ter garantias", prompt:p, answer:answers[idx]||"Sem resposta" }));
+    setSaved(true);
+  }
+
+  return (
+    <Card>
+      <SectionHeader iconName="Shield" badge="praticar" title="4 · Não ter garantias" subtitle="Complete frases para treinar tolerância relacional." />
+      <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor: B.rose }}>
+        <p className="font-bold text-sm" style={{ color: B.ink }}>Esperança prática</p>
+        <p className="text-sm text-neutral-700 mt-1">Não ter garantia não significa estar sem recursos. Significa treinar clareza, espera, pedido direto, limite e reparo.</p>
+      </div>
+      <div className="space-y-4">
+        {prompts.map((p, idx) => (
+          <label key={p} className="block">
+            <span className="font-semibold text-sm" style={{ color: B.ink }}>{p}</span>
+            <Textarea value={answers[idx]||""} onChange={e => setAnswers(prev => ({...prev,[idx]:e.target.value}))} placeholder="" minH="76px" />
+          </label>
+        ))}
+      </div>
+      <Btn onClick={save} className="w-full mt-5">Registrar respostas</Btn>
+      {saved && <Saved />}
+    </Card>
+  );
+}
+
+function Compare({ setRecords }) {
+  const [selected, setSelected] = useState(null);
+  const [note, setNote] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    if (!selected) return;
+    addRecord(setRecords, { type:"comparação de respostas", module:"Mente competitiva x cooperativa", prompt:selected.situation, answer:note||"Sem anotação", feedback:`Competitiva: ${selected.competitive}\nCooperativa: ${selected.cooperative}` });
+    setSaved(true);
+  }
+
+  return (
+    <Card>
+      <SectionHeader iconName="MessageCircle" badge="comparar" title="8 · Comparando respostas" subtitle="Compare mente competitiva e mente cooperativa em situações reais." />
+      <div className="space-y-3">
+        {compareData.map(item => (
+          <button key={item.situation} onClick={() => { setSelected(item); setNote(""); setSaved(false); }}
+            className="w-full text-left rounded-3xl border-2 p-4 bg-white transition"
+            style={{ borderColor: selected?.situation===item.situation ? B.mintDark : "#e5e7eb" }}>
+            <h3 className="font-bold text-sm" style={{ color: B.ink }}>{item.situation}</h3>
+            <p className="text-xs text-neutral-500 mt-1">{item.vulnerability}</p>
+          </button>
+        ))}
+      </div>
+      {selected && (
+        <div className="mt-5 space-y-3">
+          <div className="rounded-3xl p-4" style={{ backgroundColor: B.amber }}>
+            <p className="text-xs font-bold text-neutral-500 mb-1">Mente competitiva</p>
+            <p className="text-neutral-800 text-sm">{selected.competitive}</p>
+          </div>
+          <div className="rounded-3xl p-4" style={{ backgroundColor: B.sky }}>
+            <p className="text-xs font-bold text-neutral-500 mb-1">Mente cooperativa</p>
+            <p className="text-neutral-800 text-sm">{selected.cooperative}</p>
+          </div>
+          <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="O que percebo nessa comparação?" minH="80px" />
+          <Btn onClick={save} className="w-full">Registrar comparação</Btn>
+          {saved && <Saved />}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Modes({ setRecords }) {
+  const [selected, setSelected] = useState(null);
+  const [note, setNote] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    if (!selected) return;
+    addRecord(setRecords, { type:"modo de sobrevivência", module:"Modos de sobrevivência", prompt:selected.name, answer:note||"Sem anotação", feedback:`Vulnerabilidade: ${selected.vulnerability}\nComo pode chegar: ${selected.impact}\nAlternativa: ${selected.alternative}` });
+    setSaved(true);
+  }
+
+  return (
+    <Card>
+      <SectionHeader iconName="AlertTriangle" badge="mapear" title="9 · Modos de sobrevivência" subtitle="Quando vulnerabilidade parece perigo, um modo pode assumir o comando." />
+      <div className="space-y-3">
+        {survivalModes.map(mode => (
+          <button key={mode.name} onClick={() => { setSelected(mode); setNote(""); setSaved(false); }}
+            className="w-full text-left rounded-3xl border-2 p-4 bg-white transition"
+            style={{ borderColor: selected?.name===mode.name ? B.mintDark : "#e5e7eb" }}>
+            <h3 className="font-bold text-sm" style={{ color: B.ink }}>{mode.name}</h3>
+            <p className="text-xs text-neutral-500 mt-1">{mode.vulnerability}</p>
+          </button>
+        ))}
+      </div>
+      {selected && (
+        <div className="mt-5 rounded-3xl p-4 space-y-2" style={{ backgroundColor: B.cream }}>
+          <h3 className="font-bold text-lg">{selected.name}</h3>
+          <p className="text-sm"><b>Vulnerabilidade protegida:</b> {selected.vulnerability}</p>
+          <p className="text-sm"><b>Como pode chegar no outro:</b> {selected.impact}</p>
+          <p className="text-sm"><b>Alternativa cooperativa:</b> "{selected.alternative}"</p>
+          <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Com qual parte me identifico?" minH="80px" />
+          <Btn onClick={save} className="w-full mt-1">Registrar modo</Btn>
+          {saved && <Saved />}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Regulacao({ setRecords }) {
+  const [selected, setSelected] = useState(null);
+  const [note, setNote] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    if (!selected) return;
+    addRecord(setRecords, { type:"recurso de regulação", module:"Regulação no momento", prompt:selected.title, answer:note||"Sem anotação", feedback:selected.anchor });
+    setSaved(true);
+  }
+
+  return (
+    <Card>
+      <SectionHeader iconName="Wind" badge="regular" title="10 · Regulação no momento" subtitle="Ferramentas para criar espaço entre o impulso e a resposta." />
+      <div className="rounded-3xl p-4 mb-4 text-sm leading-relaxed" style={{ backgroundColor: B.rose }}>
+        <b style={{ color: B.ink }}>Por que regular antes de responder?</b> Em ativação alta, a janela de escolha fica muito estreita. Regulação não é suprimir a emoção — é criar espaço suficiente para escolher o que fazer com ela.
+      </div>
+      <div className="space-y-3">
+        {regulacaoExercises.map(ex => (
+          <button key={ex.title} onClick={() => { setSelected(ex); setNote(""); setSaved(false); }}
+            className="w-full text-left rounded-3xl border-2 p-4 bg-white transition"
+            style={{ borderColor: selected?.title===ex.title ? B.mintDark : "#e5e7eb" }}>
+            <h3 className="font-bold text-sm" style={{ color: B.ink }}>{ex.title}</h3>
+            <p className="text-xs text-neutral-500 mt-1">{ex.when}</p>
+          </button>
+        ))}
+      </div>
+      {selected && (
+        <div className="mt-5 space-y-3">
+          <div className="rounded-3xl p-4" style={{ backgroundColor: B.cream }}>
+            <h3 className="font-bold mb-2" style={{ color: B.ink }}>{selected.title}</h3>
+            <p className="text-xs font-semibold text-neutral-500 mb-3">Quando usar: {selected.when}</p>
+            <ol className="space-y-2">
+              {selected.steps.map((step, i) => (
+                <li key={i} className="flex gap-2 text-sm text-neutral-700">
+                  <span className="font-bold shrink-0" style={{ color: B.mintDark }}>{i+1}.</span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div className="rounded-3xl p-4 text-sm" style={{ backgroundColor: B.sky }}>
+            <p className="font-semibold" style={{ color: B.ink }}>Para lembrar</p>
+            <p className="text-neutral-700 mt-1">{selected.anchor}</p>
+          </div>
+          <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Em qual situação quero usar esse recurso?" minH="80px" />
+          <Btn onClick={save} className="w-full">Registrar recurso</Btn>
+          {saved && <Saved />}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Cues({ setRecords }) {
+  const [selected, setSelected] = useState(null);
+  const [answer, setAnswer] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    if (!selected) return;
+    addRecord(setRecords, { type:"pistas sociais", module:"Pistas sociais", prompt:selected[0], answer:answer||"Sem anotação", feedback:`Fato: ${selected[1]}\nInterpretações possíveis: ${selected[2]}\nChecagem: ${selected[3]}` });
+    setSaved(true);
+  }
+
+  return (
+    <Card>
+      <SectionHeader iconName="HelpCircle" badge="mentalizar" title="12 · Pistas sociais" subtitle="Separe fato, interpretação e checagem cuidadosa." />
+      <div className="space-y-3">
+        {cueExamples.map(cue => (
+          <button key={cue[0]} onClick={() => { setSelected(cue); setAnswer(""); setSaved(false); }}
+            className="w-full text-left rounded-3xl border-2 p-4 bg-white transition"
+            style={{ borderColor: selected?.[0]===cue[0] ? B.mintDark : "#e5e7eb" }}>
+            <p className="font-bold text-sm" style={{ color: B.ink }}>{cue[0]}</p>
+          </button>
+        ))}
+      </div>
+      {selected && (
+        <div className="mt-5 space-y-3">
+          <div className="rounded-3xl p-4 text-sm space-y-2" style={{ backgroundColor: B.cream }}>
+            <p><b>Fato observável:</b> {selected[1]}</p>
+            <p><b>Interpretações possíveis:</b> {selected[2]}</p>
+            <p><b>Frase de checagem:</b> "{selected[3]}"</p>
+          </div>
+          <Textarea value={answer} onChange={e => setAnswer(e.target.value)} placeholder="Minha interpretação automática costuma ser..." minH="80px" />
+          <Btn onClick={save} className="w-full">Registrar pista</Btn>
+          {saved && <Saved />}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Cases({ selectedGoal, setRecords }) {
+  const track = selectedGoal ? focusTracks[selectedGoal] : null;
+  const [idx, setIdx] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  if (!track) {
+    return (
+      <Card>
+        <SectionHeader iconName="BookOpen" badge="PBL" title="13 · PBL do meu foco" subtitle="Prática baseada em situações reais." />
+        <div className="rounded-3xl p-5 text-center text-sm text-neutral-600 leading-relaxed" style={{ backgroundColor: B.soft }}>
+          Você ainda não escolheu um foco. Volte ao <b>módulo 1</b> e selecione a trilha que mais faz sentido para você agora.
+        </div>
+      </Card>
+    );
+  }
+
+  const item = track.pbl[idx];
+
+  function save() {
+    addRecord(setRecords, { type:"situação PBL", module:`PBL · ${track.title}`, prompt:item.scenario, answer:answer||"Sem resposta", feedback:`Modelo possível: ${item.model}` });
+    setSaved(true);
+  }
+
+  return (
+    <Card>
+      <SectionHeader iconName="BookOpen" badge="PBL" title="13 · PBL do meu foco" subtitle={`Foco: ${track.title}`} />
+      <ProgressBar value={((idx+1)/track.pbl.length)*100} />
+      <p className="text-xs text-neutral-500 mt-2 mb-4">Situação {idx+1} de {track.pbl.length}</p>
+      <div className="rounded-3xl p-4" style={{ backgroundColor: B.cream }}>
+        <p className="text-neutral-700 leading-relaxed text-sm">{item.scenario}</p>
+        <ul className="mt-3 list-disc pl-5 text-sm text-neutral-600 space-y-1">
+          {item.prompts.map(p => <li key={p}>{p}</li>)}
+        </ul>
+      </div>
+      <Textarea value={answer} onChange={e => { setAnswer(e.target.value); setSaved(false); }} placeholder="Minha resposta..." minH="100px" />
+      <details className="mt-3 rounded-2xl p-3" style={{ backgroundColor: B.sky }}>
+        <summary className="font-semibold text-sm" style={{ color: B.coralDark }}>Ver modelo possível</summary>
+        <p className="mt-2 text-sm text-neutral-700">"{item.model}"</p>
+      </details>
+      <div className="flex gap-2 mt-4">
+        <Btn outline disabled={idx===0} onClick={() => { setIdx(i => i-1); setAnswer(""); setSaved(false); }} className="flex-1">← Anterior</Btn>
+        <Btn onClick={save} className="flex-1">Salvar</Btn>
+        <Btn outline disabled={idx===track.pbl.length-1} onClick={() => { setIdx(i => i+1); setAnswer(""); setSaved(false); }} className="flex-1">Próximo →</Btn>
+      </div>
+      {saved && <Saved />}
+    </Card>
+  );
+}
+
+function MapPage({ setRecords }) {
+  const fields = [
+    ["situação","O que aconteceu?"],
+    ["vulnerabilidade","O que ficou incerto, exposto ou sem garantia?"],
+    ["pista social","Tom, olhar, silêncio, crítica, distância?"],
+    ["interpretação automática","O que minha mente concluiu naquele momento?"],
+    ["corpo","Tensão, calor, urgência, congelamento?"],
+    ["modo ativado","Ataque, desprezo, controle, invasão, teste, congelamento, ocupar espaço?"],
+    ["resposta que dei","O que eu disse ou fiz?"],
+    ["resposta cooperativa possível","Como eu poderia ter protegido sem atacar ou invadir?"],
+    ["impacto no outro","O que o outro pode ter sentido?"],
+    ["reparo","O que posso dizer ou praticar agora?"],
+  ];
+  const [answers, setAnswers] = useState({});
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    fields.forEach(([label]) => addRecord(setRecords, { type:"meu mapa relacional", module:"Meu mapa relacional", prompt:label, answer:answers[label]||"Sem resposta" }));
+    setSaved(true);
+  }
+
+  return (
+    <Card>
+      <SectionHeader iconName="Compass" badge="registro guiado" title="14 · Meu mapa relacional" subtitle="Use uma situação real para observar vulnerabilidade, pista, modo e alternativa." />
+      <div className="space-y-4">
+        {fields.map(([label, placeholder]) => (
+          <label key={label} className="block">
+            <span className="font-semibold text-sm capitalize" style={{ color: B.ink }}>{label}</span>
+            <Textarea value={answers[label]||""} onChange={e => setAnswers(prev => ({...prev,[label]:e.target.value}))} placeholder={placeholder} minH="76px" />
+          </label>
+        ))}
+      </div>
+      <Btn onClick={save} className="w-full mt-5">Registrar mapa</Btn>
+      {saved && <Saved />}
+    </Card>
+  );
+}
+
+function Report({ records, customNotes, setCustomNotes, selectedGoal }) {
+  const goal = selectedGoal ? focusTracks[selectedGoal] : null;
+  return (
+    <Card>
+      <div className="no-print">
+        <SectionHeader iconName="Download" badge="salvar" title="16 · Relatório para a sessão" subtitle="Suas respostas estão organizadas abaixo." />
+        <Textarea value={customNotes} onChange={e => setCustomNotes(e.target.value)} placeholder="Algo que quero conversar na sessão, uma dúvida, ou uma frase que ficou..." minH="100px" />
+        <Btn onClick={() => window.print()} className="w-full mt-4">
+          <Ic name="Printer" size={18} color="white" /> Salvar ou imprimir em PDF
+        </Btn>
+      </div>
+      <div className="print-area mt-6">
+        <h1 className="text-2xl font-bold" style={{ color: B.ink }}>Mapa dos Vínculos · Relatório</h1>
+        {goal && <div className="rounded-3xl p-4 my-4" style={{ backgroundColor: B.amber }}><b>Foco:</b> {goal.title} — {goal.short}</div>}
+        <div className="rounded-3xl p-4 mb-5" style={{ backgroundColor: B.soft }}>
+          <b>Nota para a sessão:</b>
+          <p className="whitespace-pre-wrap mt-1">{customNotes||"Sem anotação final."}</p>
+        </div>
+        <div className="space-y-3">
+          {records.length===0
+            ? <p className="text-neutral-500">Nenhuma resposta registrada ainda.</p>
+            : records.map((r,idx) => (
+              <div key={idx} className="rounded-3xl border border-neutral-100 p-4 break-inside-avoid">
+                <p className="text-xs uppercase text-neutral-400">{r.type} · {r.module}</p>
+                <p className="font-bold mt-1 text-sm">{r.prompt}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm"><b>Resposta:</b> {r.answer}</p>
+                {r.feedback && <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-500"><b>Ideia-chave:</b> {r.feedback}</p>}
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function Drawer({ open, onClose, step, setStep }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 no-print" style={{ background:"rgba(0,0,0,0.3)" }}>
+      <button onClick={onClose} className="absolute inset-0 w-full h-full cursor-default border-0 bg-transparent" />
+      <div className="absolute right-0 top-0 h-full w-[86%] max-w-sm bg-white shadow-2xl p-4 overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <p className="font-bold text-lg" style={{ color: B.ink }}>Menu</p>
+          <Btn ghost onClick={onClose}><Ic name="X" size={18} /></Btn>
+        </div>
+        <div className="space-y-1">
+          {chapters.map((c, i) => (
+            <button key={c.id} onClick={() => { setStep(i); onClose(); }}
+              className="w-full text-left rounded-2xl p-3 text-sm font-medium transition"
+              style={{ backgroundColor: i===step ? "#ecfdf5" : "#f9fafb", border: i===step ? `1px solid ${B.mintDark}` : "1px solid transparent", color: B.ink }}>
+              {c.title}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── APP PRINCIPAL ────────────────────────────────────────────────────────────
+function MapaDosVinculosApp() {
+  const [step, setStep] = useState(0);
+  const [records, setRecords] = useState([]);
+  const [customNotes, setCustomNotes] = useState("");
+  const [selectedGoal, setSelectedGoal] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const current = chapters[step];
+  const progress = Math.round((step / (chapters.length-1)) * 100);
+
+  function reset() {
+    if (records.length>0 && !window.confirm("Reiniciar vai apagar todas as respostas. Continuar?")) return;
+    setStep(0); setRecords([]); setCustomNotes(""); setSelectedGoal("");
+  }
+
+  const goNext = () => setStep(s => Math.min(chapters.length-1, s+1));
+  const goBack = () => setStep(s => Math.max(0, s-1));
+
+  return (
+    <div className="h-screen overflow-hidden p-3 sm:p-6"
+      style={{ background:`radial-gradient(circle at top left,${B.mint}70,transparent 34%),linear-gradient(180deg,${B.cream},#ffffff)` }}>
+      <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} step={step} setStep={setStep} />
+      <div className="mx-auto max-w-3xl h-full flex flex-col">
+
+        {/* HEADER */}
+        <header className="no-print shrink-0 rounded-3xl p-3 shadow-sm mb-3" style={{ backgroundColor:"rgba(255,255,255,0.88)" }}>
+          <div className="flex items-center justify-between gap-2">
+            <Btn ghost onClick={() => setMenuOpen(true)}>
+              <Ic name="Menu" size={18} /> <span className="text-sm">Menu</span>
+            </Btn>
+            <div className="text-center">
+              <p className="text-[10px] uppercase tracking-widest text-neutral-400">psicoeducação</p>
+              <p className="font-bold text-sm" style={{ color: B.ink }}>Mapa dos Vínculos</p>
+            </div>
+            <Btn ghost onClick={reset} style={{ minWidth:40 }}>
+              <Ic name="Refresh" size={16} />
+            </Btn>
+          </div>
+          {step>0 && (
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-neutral-500 mb-1">
+                <span>{current.title}</span><span>{progress}%</span>
+              </div>
+              <ProgressBar value={progress} />
+            </div>
+          )}
+        </header>
+
+        {/* MAIN */}
+        <main className="flex-1 overflow-y-auto overscroll-contain pb-24" style={{ scrollbarWidth:"thin" }}>
+          <div key={current.id} className="page-in">
+            {current.type==="home"      && <Home onNext={goNext} />}
+            {current.type==="focus"     && <Focus selectedGoal={selectedGoal} setSelectedGoal={setSelectedGoal} setRecords={setRecords} />}
+            {current.type==="learn"     && <Learn chapter={current} setRecords={setRecords} />}
+            {current.type==="practice"  && <Practice setRecords={setRecords} />}
+            {current.type==="compare"   && <Compare setRecords={setRecords} />}
+            {current.type==="modes"     && <Modes setRecords={setRecords} />}
+            {current.type==="regulacao" && <Regulacao setRecords={setRecords} />}
+            {current.type==="cues"      && <Cues setRecords={setRecords} />}
+            {current.type==="cases"     && <Cases selectedGoal={selectedGoal} setRecords={setRecords} />}
+            {current.type==="map"       && <MapPage setRecords={setRecords} />}
+            {current.type==="report"    && <Report records={records} customNotes={customNotes} setCustomNotes={setCustomNotes} selectedGoal={selectedGoal} />}
+          </div>
+        </main>
+
+        {/* FOOTER NAV */}
+        {step>0 && (
+          <footer className="no-print fixed bottom-0 left-0 right-0 border-t p-3" style={{ backgroundColor:"rgba(255,255,255,0.95)" }}>
+            <div className="mx-auto max-w-3xl flex gap-2">
+              <Btn outline onClick={goBack} className="flex-1">
+                <Ic name="ArrowLeft" size={16} /> Voltar
+              </Btn>
+              <Btn onClick={goNext} disabled={step===chapters.length-1} className="flex-[1.3]">
+                {step===chapters.length-1 ? "Final" : "Avançar"} <Ic name="ArrowRight" size={16} color="white" />
+              </Btn>
+            </div>
+          </footer>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<MapaDosVinculosApp />);
+</script>
+</body>
+</html>
