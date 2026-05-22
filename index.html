@@ -13,16 +13,19 @@
   <style>
     *, body { font-family: 'Inter', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
     @keyframes pageIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(5px)} }
     .page-in { animation: pageIn .22s ease-out both; }
-    textarea { font-family: inherit; resize: vertical; }
+    .bounce   { animation: bounce 1.3s ease-in-out infinite; }
+    textarea  { font-family: inherit; resize: vertical; }
     details summary { list-style: none; cursor: pointer; }
     details summary::-webkit-details-marker { display: none; }
-    ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
     @media print {
       body * { visibility: hidden !important; }
       .print-area, .print-area * { visibility: visible !important; }
       .print-area { position: absolute; left: 0; top: 0; width: 100%; }
-      .no-print { display: none !important; }
+      .no-print   { display: none !important; }
       @page { margin: 14mm; }
     }
   </style>
@@ -31,7 +34,7 @@
   <div id="root"></div>
 
 <script type="text/babel" data-presets="react">
-const { useState, useMemo } = React;
+const { useState, useMemo, useRef, useEffect } = React;
 
 // ─── BRAND ────────────────────────────────────────────────────────────────────
 const B = {
@@ -60,6 +63,8 @@ const SVGS = {
   Refresh:`<path d="M3 2v6h6"/><path d="M21 12A9 9 0 0 0 6 5.3L3 8"/><path d="M21 22v-6h-6"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/>`,
   ArrowLeft:`<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>`,
   ArrowRight:`<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>`,
+  ArrowDown:`<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>`,
+  Check:`<polyline points="20 6 9 17 4 12"/>`,
 };
 
 function Ic({ name, size=22, color="currentColor" }) {
@@ -74,20 +79,20 @@ function Ic({ name, size=22, color="currentColor" }) {
 function ProgressBar({ value }) {
   return (
     <div className="w-full bg-neutral-200 rounded-full h-2">
-      <div className="h-2 rounded-full transition-all" style={{ width: `${value}%`, backgroundColor: B.mintDark }} />
+      <div className="h-2 rounded-full transition-all" style={{ width:`${value}%`, backgroundColor:B.mintDark }} />
     </div>
   );
 }
 
 function Btn({ children, onClick, disabled, outline, ghost, style={}, className="" }) {
   const base = "inline-flex items-center justify-center gap-1 rounded-2xl h-12 px-4 text-sm font-semibold cursor-pointer border-0 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed";
-  if (ghost) return <button onClick={onClick} disabled={disabled} style={style} className={`${base} bg-transparent text-neutral-700 hover:bg-neutral-100 ${className}`}>{children}</button>;
+  if (ghost)   return <button onClick={onClick} disabled={disabled} style={style} className={`${base} bg-transparent text-neutral-700 hover:bg-neutral-100 ${className}`}>{children}</button>;
   if (outline) return <button onClick={onClick} disabled={disabled} style={style} className={`${base} bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50 ${className}`}>{children}</button>;
-  return <button onClick={onClick} disabled={disabled} style={{ backgroundColor: B.coralDark, color:"white", ...style }} className={`${base} ${className}`}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} style={{ backgroundColor:B.coralDark, color:"white", ...style }} className={`${base} ${className}`}>{children}</button>;
 }
 
 function Badge({ children }) {
-  return <span className="inline-block rounded-full text-xs font-semibold px-3 py-1 mb-2" style={{ backgroundColor: B.mintDark, color:"white" }}>{children}</span>;
+  return <span className="inline-block rounded-full text-xs font-semibold px-3 py-1 mb-2" style={{ backgroundColor:B.mintDark, color:"white" }}>{children}</span>;
 }
 
 function Card({ children }) {
@@ -97,12 +102,12 @@ function Card({ children }) {
 function SectionHeader({ iconName, badge, title, subtitle }) {
   return (
     <div className="flex items-start gap-3 mb-5">
-      <div className="rounded-3xl p-3 shrink-0" style={{ backgroundColor: B.mint }}>
+      <div className="rounded-3xl p-3 shrink-0" style={{ backgroundColor:B.mint }}>
         <Ic name={iconName} size={28} color={B.ink} />
       </div>
       <div>
         <Badge>{badge}</Badge>
-        <h2 className="text-2xl font-bold leading-tight" style={{ color: B.ink }}>{title}</h2>
+        <h2 className="text-2xl font-bold leading-tight" style={{ color:B.ink }}>{title}</h2>
         {subtitle && <p className="text-sm text-neutral-600 mt-1 leading-relaxed">{subtitle}</p>}
       </div>
     </div>
@@ -113,16 +118,88 @@ function Textarea({ value, onChange, placeholder, minH="90px" }) {
   return (
     <textarea value={value} onChange={onChange} placeholder={placeholder}
       className="mt-2 w-full rounded-3xl border border-neutral-200 p-4 outline-none bg-white text-sm"
-      style={{ minHeight: minH }} />
+      style={{ minHeight:minH }} />
   );
 }
 
+// Pílulas indicando os passos da tela
+function StepHint({ steps }) {
+  return (
+    <div className="flex items-center gap-1 flex-wrap mb-4">
+      {steps.map((s, i) => (
+        <React.Fragment key={s}>
+          <span className="text-xs px-2 py-1 rounded-full font-semibold"
+            style={{ backgroundColor:B.mint, color:B.ink }}>{i+1}. {s}</span>
+          {i < steps.length-1 && <span className="text-xs text-neutral-400 font-bold">›</span>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+// Aviso quando nada foi selecionado ainda em telas de lista
+function SelectPrompt({ label }) {
+  return (
+    <div className="flex items-center gap-2 rounded-2xl px-4 py-3 mt-3 text-sm font-medium"
+      style={{ backgroundColor:B.amber, color:B.ink, border:"1.5px dashed #e5c97a" }}>
+      <span style={{ fontSize:16 }}>☝️</span>
+      <span>{label || "Selecione um item acima para continuar."}</span>
+    </div>
+  );
+}
+
+// Banner verde após salvar — orienta o próximo passo
 function Saved() {
-  return <p className="text-sm mt-2" style={{ color: B.mintDark }}>Registrado para o relatório final.</p>;
+  return (
+    <div className="mt-4 rounded-2xl p-3 flex items-start gap-3"
+      style={{ backgroundColor:"#ecfdf5", border:"1.5px solid #5C9E8B" }}>
+      <div className="shrink-0 rounded-full p-1" style={{ backgroundColor:B.mintDark }}>
+        <Ic name="Check" size={14} color="white" />
+      </div>
+      <div>
+        <p className="font-bold text-sm" style={{ color:"#166534" }}>Registrado!</p>
+        <p className="text-xs text-neutral-600 mt-0.5">
+          Use o botão <b>Próximo módulo →</b> na barra abaixo para continuar.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Gradiente + seta animada quando há mais conteúdo abaixo
+function ScrollHint({ mainRef, step }) {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const el = mainRef?.current;
+    if (!el) return;
+    el.scrollTop = 0;
+    const check = () => {
+      const overflows  = el.scrollHeight > el.clientHeight + 12;
+      const notBottom  = el.scrollTop + el.clientHeight < el.scrollHeight - 48;
+      setShow(overflows && notBottom);
+    };
+    const t = setTimeout(check, 200);
+    el.addEventListener('scroll', check, { passive:true });
+    return () => { el.removeEventListener('scroll', check); clearTimeout(t); };
+  }, [step]);
+
+  if (!show) return null;
+  return (
+    <div className="fixed no-print pointer-events-none"
+      style={{ bottom:76, left:0, right:0, height:80, zIndex:40,
+        background:"linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.97) 100%)",
+        display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom:10 }}>
+      <div className="bounce flex flex-col items-center gap-0.5" style={{ color:B.mintDark, opacity:0.85 }}>
+        <Ic name="ArrowDown" size={20} />
+        <span style={{ fontSize:10, fontWeight:700, letterSpacing:".08em" }}>ROLE</span>
+      </div>
+    </div>
+  );
 }
 
 function addRecord(setRecords, record) {
-  setRecords(prev => [...prev, { ...record, createdAt: new Date().toLocaleString("pt-BR") }]);
+  setRecords(prev => [...prev, { ...record, createdAt:new Date().toLocaleString("pt-BR") }]);
 }
 
 // ─── DADOS: TRILHAS ───────────────────────────────────────────────────────────
@@ -235,39 +312,39 @@ const focusTracks = {
 
 // ─── MODOS DE SOBREVIVÊNCIA ───────────────────────────────────────────────────
 const survivalModes = [
-  { name:"Ataque", vulnerability:"Medo de ser diminuída ou atacada", impact:"Pode soar como agressividade ou intimidação", alternative:"Isso me ativou. Preciso de um minuto." },
-  { name:"Desprezo", vulnerability:"Medo de parecer inferior ou sem valor", impact:"Pode soar como deboche ou humilhação", alternative:"Eu vejo diferente. Posso explicar sem te diminuir?" },
-  { name:"Controle", vulnerability:"Medo de incerteza ou perda de segurança", impact:"Pode soar como pressão ou manipulação", alternative:"Estou insegura e queria pedir clareza." },
-  { name:"Invasão / urgência", vulnerability:"Medo de esperar ou ser esquecida", impact:"Pode soar como sufocamento", alternative:"Você tem espaço agora ou combinamos outro momento?" },
-  { name:"Congelamento", vulnerability:"Medo de errar ou sentir demais", impact:"Pode soar como indiferença ou frieza", alternative:"Eu travei. Preciso de tempo e retomo depois." },
-  { name:"Teste indireto", vulnerability:"Medo de não ser importante ou escolhida", impact:"Pode soar como frieza calculada ou provocação", alternative:"Quero pedir segurança sem te testar." },
-  { name:"Ocupar espaço", vulnerability:"Medo de não ser entendida ou levada a sério", impact:"Pode soar como não dar a vez", alternative:"Falei bastante. Quero te ouvir também." },
+  { name:"Ataque",           vulnerability:"Medo de ser diminuída ou atacada",          impact:"Pode soar como agressividade ou intimidação",       alternative:"Isso me ativou. Preciso de um minuto." },
+  { name:"Desprezo",         vulnerability:"Medo de parecer inferior ou sem valor",      impact:"Pode soar como deboche ou humilhação",              alternative:"Eu vejo diferente. Posso explicar sem te diminuir?" },
+  { name:"Controle",         vulnerability:"Medo de incerteza ou perda de segurança",   impact:"Pode soar como pressão ou manipulação",            alternative:"Estou insegura e queria pedir clareza." },
+  { name:"Invasão / urgência",vulnerability:"Medo de esperar ou ser esquecida",         impact:"Pode soar como sufocamento",                       alternative:"Você tem espaço agora ou combinamos outro momento?" },
+  { name:"Congelamento",     vulnerability:"Medo de errar ou sentir demais",            impact:"Pode soar como indiferença ou frieza",             alternative:"Eu travei. Preciso de tempo e retomo depois." },
+  { name:"Teste indireto",   vulnerability:"Medo de não ser importante ou escolhida",   impact:"Pode soar como frieza calculada ou provocação",    alternative:"Quero pedir segurança sem te testar." },
+  { name:"Ocupar espaço",    vulnerability:"Medo de não ser entendida ou levada a sério",impact:"Pode soar como não dar a vez",                    alternative:"Falei bastante. Quero te ouvir também." },
 ];
 
 // ─── COMPARAÇÃO ───────────────────────────────────────────────────────────────
 const compareData = [
-  { situation:"Quando se sente atacada", vulnerability:"Medo de ser colocada no papel de errada", competitive:'"Você sempre exagera. Não fiz nada demais."', cooperative:'"Isso me ativou. Preciso de um minuto antes de responder."' },
-  { situation:"Quando se sente inferior", vulnerability:"Medo de perder status ou respeito", competitive:'"Não acredito que você pensa assim. Que ingenuidade."', cooperative:'"Eu vejo diferente. Posso te contar minha perspectiva?"' },
-  { situation:"Quando sente incerteza", vulnerability:"Medo de não importar o suficiente", competitive:'"Se não vai responder, esquece então."', cooperative:'"Estou insegura e queria saber se está tudo bem entre nós."' },
-  { situation:"Quando sente urgência", vulnerability:"Medo de esperar e ser esquecida", competitive:'"Então você não liga. Já entendi."', cooperative:'"Você tem espaço pra essa conversa agora ou combinamos outro momento?"' },
-  { situation:"Quando sente vergonha", vulnerability:"Medo de reconhecer impacto", competitive:'"Você é sensível demais. Eu estava brincando."', cooperative:'"Minha intenção era outra, mas quero entender o que te magoou."' },
-  { situation:"Quando não é entendida", vulnerability:"Medo de não ser levada a sério", competitive:'"Você nunca entende o que eu digo. Deixa pra lá."', cooperative:'"Acho que não me expressei bem. Posso tentar de novo?"' },
+  { situation:"Quando se sente atacada",    vulnerability:"Medo de ser colocada no papel de errada",  competitive:'"Você sempre exagera. Não fiz nada demais."',           cooperative:'"Isso me ativou. Preciso de um minuto antes de responder."' },
+  { situation:"Quando se sente inferior",   vulnerability:"Medo de perder status ou respeito",         competitive:'"Não acredito que você pensa assim. Que ingenuidade."', cooperative:'"Eu vejo diferente. Posso te contar minha perspectiva?"' },
+  { situation:"Quando sente incerteza",     vulnerability:"Medo de não importar o suficiente",         competitive:'"Se não vai responder, esquece então."',                 cooperative:'"Estou insegura e queria saber se está tudo bem entre nós."' },
+  { situation:"Quando sente urgência",      vulnerability:"Medo de esperar e ser esquecida",           competitive:'"Então você não liga. Já entendi."',                    cooperative:'"Você tem espaço pra essa conversa agora ou combinamos outro momento?"' },
+  { situation:"Quando sente vergonha",      vulnerability:"Medo de reconhecer impacto",                competitive:'"Você é sensível demais. Eu estava brincando."',         cooperative:'"Minha intenção era outra, mas quero entender o que te magoou."' },
+  { situation:"Quando não é entendida",     vulnerability:"Medo de não ser levada a sério",            competitive:'"Você nunca entende o que eu digo. Deixa pra lá."',     cooperative:'"Acho que não me expressei bem. Posso tentar de novo?"' },
 ];
 
 // ─── REGULAÇÃO ────────────────────────────────────────────────────────────────
 const regulacaoExercises = [
-  { title:"Pausa de 5 segundos", when:"Antes de responder quando você está ativada", steps:["Perceba o impulso de responder.","Conte mentalmente até 5.","Pergunte: 'o que eu quero proteger aqui?'","Escolha como responder."], anchor:"Cinco segundos entre o impulso e a resposta." },
-  { title:"Aterramento pelo corpo", when:"Quando sentir urgência, calor ou tensão física", steps:["Sinta os pés no chão.","Pressione levemente as mãos nas coxas.","Respire fundo e solte devagar.","Nomeie 3 coisas que você vê ao redor."], anchor:"O corpo encontra equilíbrio quando você dá um sinal de segurança." },
-  { title:"Nomeação do estado", when:"Para reduzir a intensidade emocional antes de falar", steps:["Identifique o que está sentindo: raiva, medo, vergonha, urgência?","Nomeie em voz baixa ou por escrito.","Pergunte: 'qual vulnerabilidade esse estado está protegendo?'"], anchor:"Nomear o estado reduz a intensidade e cria espaço." },
-  { title:"Frase de pausa relacional", when:"Para usar com a outra pessoa antes de responder impulsivamente", steps:["'Preciso de um minuto para responder melhor.'","'Estou ativada. Posso voltar nisso daqui a pouco?'","'Não quero responder agora e me arrepender. Retomo em breve.'"], anchor:"Pedir pausa é uma habilidade relacional — não fraqueza." },
+  { title:"Pausa de 5 segundos",       when:"Antes de responder quando você está ativada",               steps:["Perceba o impulso de responder.","Conte mentalmente até 5.","Pergunte: 'o que eu quero proteger aqui?'","Escolha como responder."],                                                                             anchor:"Cinco segundos entre o impulso e a resposta." },
+  { title:"Aterramento pelo corpo",    when:"Quando sentir urgência, calor ou tensão física",            steps:["Sinta os pés no chão.","Pressione levemente as mãos nas coxas.","Respire fundo e solte devagar.","Nomeie 3 coisas que você vê ao redor."],                                                                    anchor:"O corpo encontra equilíbrio quando você dá um sinal de segurança." },
+  { title:"Nomeação do estado",        when:"Para reduzir a intensidade emocional antes de falar",       steps:["Identifique o que está sentindo: raiva, medo, vergonha, urgência?","Nomeie em voz baixa ou por escrito.","Pergunte: 'qual vulnerabilidade esse estado está protegendo?'"],                                    anchor:"Nomear o estado reduz a intensidade e cria espaço." },
+  { title:"Frase de pausa relacional", when:"Para usar com a outra pessoa antes de responder no impulso",steps:["'Preciso de um minuto para responder melhor.'","'Estou ativada. Posso voltar nisso daqui a pouco?'","'Não quero responder agora e me arrepender. Retomo em breve.'"],                                        anchor:"Pedir pausa é uma habilidade relacional — não fraqueza." },
 ];
 
 // ─── PISTAS SOCIAIS ───────────────────────────────────────────────────────────
 const cueExamples = [
-  ["A pessoa demorou para responder","A resposta não veio ainda","Pode estar ocupada, cansada, pensando ou distante","Quando puder, queria checar se está tudo bem entre nós."],
-  ["A pessoa fez expressão séria","O rosto pareceu sério","Pode ser irritação, concentração, cansaço ou dúvida","Percebi sua expressão mais séria. Você ficou incomodada ou entendi errado?"],
-  ["A pessoa discordou em público","Ela apresentou outra opinião","Pode ser contribuição, crítica ou disputa","Eu senti isso como exposição, mas queria entender sua intenção."],
-  ["A pessoa pediu tempo","Ela não quer conversar agora","Pode ser limite, cansaço ou necessidade de pensar","Tudo bem. Você prefere retomar quando?"],
+  ["A pessoa demorou para responder", "A resposta não veio ainda",    "Pode estar ocupada, cansada, pensando ou distante",   "Quando puder, queria checar se está tudo bem entre nós."],
+  ["A pessoa fez expressão séria",    "O rosto pareceu sério",        "Pode ser irritação, concentração, cansaço ou dúvida", "Percebi sua expressão mais séria. Você ficou incomodada ou entendi errado?"],
+  ["A pessoa discordou em público",   "Ela apresentou outra opinião", "Pode ser contribuição, crítica ou disputa",           "Eu senti isso como exposição, mas queria entender sua intenção."],
+  ["A pessoa pediu tempo",            "Ela não quer conversar agora", "Pode ser limite, cansaço ou necessidade de pensar",   "Tudo bem. Você prefere retomar quando?"],
 ];
 
 // ─── PSICOEDUCAÇÃO ────────────────────────────────────────────────────────────
@@ -318,23 +395,23 @@ const learnContent = {
 
 // ─── CAPÍTULOS ────────────────────────────────────────────────────────────────
 const chapters = [
-  { id:"home",          type:"home",      title:"Mapa dos Vínculos",                    icon:"Heart" },
-  { id:"focus",         type:"focus",     title:"1 · Escolha seu foco",                 icon:"Compass" },
-  { id:"vinculos",      type:"learn",     title:"2 · Por que vínculos importam?",       icon:"Users" },
-  { id:"vulnerabilidade",type:"learn",    title:"3 · Vulnerabilidade",                  icon:"Heart" },
-  { id:"garantias",     type:"practice",  title:"4 · Não ter garantias",                icon:"Shield" },
-  { id:"historia",      type:"learn",     title:"5 · Quando vulnerabilidade parece perigo", icon:"Brain" },
-  { id:"vergonha",      type:"learn",     title:"6 · Status e vergonha",               icon:"AlertTriangle" },
-  { id:"mentes",        type:"learn",     title:"7 · Mente competitiva x cooperativa",  icon:"Sparkles" },
-  { id:"compare",       type:"compare",   title:"8 · Comparando respostas",             icon:"MessageCircle" },
-  { id:"modes",         type:"modes",     title:"9 · Modos de sobrevivência",           icon:"AlertTriangle" },
-  { id:"regulacao",     type:"regulacao", title:"10 · Regulação no momento",            icon:"Wind" },
-  { id:"frustracao",    type:"learn",     title:"11 · Frustração não é ataque",         icon:"Shield" },
-  { id:"cues",          type:"cues",      title:"12 · Pistas sociais",                  icon:"HelpCircle" },
-  { id:"cases",         type:"cases",     title:"13 · PBL do meu foco",                 icon:"BookOpen" },
-  { id:"map",           type:"map",       title:"14 · Meu mapa relacional",             icon:"Compass" },
-  { id:"repair",        type:"learn",     title:"15 · Reparo",                          icon:"Heart" },
-  { id:"report",        type:"report",    title:"16 · Relatório",                       icon:"Download" },
+  { id:"home",           type:"home",      title:"Mapa dos Vínculos",                     icon:"Heart" },
+  { id:"focus",          type:"focus",     title:"1 · Escolha seu foco",                  icon:"Compass" },
+  { id:"vinculos",       type:"learn",     title:"2 · Por que vínculos importam?",        icon:"Users" },
+  { id:"vulnerabilidade",type:"learn",     title:"3 · Vulnerabilidade",                   icon:"Heart" },
+  { id:"garantias",      type:"practice",  title:"4 · Não ter garantias",                 icon:"Shield" },
+  { id:"historia",       type:"learn",     title:"5 · Quando vulnerabilidade parece perigo",icon:"Brain" },
+  { id:"vergonha",       type:"learn",     title:"6 · Status e vergonha",                 icon:"AlertTriangle" },
+  { id:"mentes",         type:"learn",     title:"7 · Mente competitiva x cooperativa",   icon:"Sparkles" },
+  { id:"compare",        type:"compare",   title:"8 · Comparando respostas",              icon:"MessageCircle" },
+  { id:"modes",          type:"modes",     title:"9 · Modos de sobrevivência",            icon:"AlertTriangle" },
+  { id:"regulacao",      type:"regulacao", title:"10 · Regulação no momento",             icon:"Wind" },
+  { id:"frustracao",     type:"learn",     title:"11 · Frustração não é ataque",          icon:"Shield" },
+  { id:"cues",           type:"cues",      title:"12 · Pistas sociais",                   icon:"HelpCircle" },
+  { id:"cases",          type:"cases",     title:"13 · PBL do meu foco",                  icon:"BookOpen" },
+  { id:"map",            type:"map",       title:"14 · Meu mapa relacional",              icon:"Compass" },
+  { id:"repair",         type:"learn",     title:"15 · Reparo",                           icon:"Heart" },
+  { id:"report",         type:"report",    title:"16 · Relatório",                        icon:"Download" },
 ];
 
 // ─── TELAS ────────────────────────────────────────────────────────────────────
@@ -345,15 +422,15 @@ function Home({ onNext }) {
       <p className="text-base leading-relaxed text-neutral-700">
         Este material foi pensado para ajudar você a entender por que relações às vezes ativam defesa, como reconhecer o que acontece no seu corpo e nas conversas, e como treinar respostas com mais clareza, cuidado e coragem.
       </p>
-      <div className="rounded-3xl p-4 mt-4" style={{ backgroundColor: B.soft }}>
-        <p className="font-semibold" style={{ color: B.ink }}>Ideia central</p>
+      <div className="rounded-3xl p-4 mt-4" style={{ backgroundColor:B.soft }}>
+        <p className="font-semibold" style={{ color:B.ink }}>Ideia central</p>
         <p className="text-sm leading-relaxed text-neutral-700 mt-1">
           Relações sempre envolvem alguma vulnerabilidade. Quando a vulnerabilidade parece perigosa, a mente tenta se proteger: controlar, atacar, testar, se afastar ou se fechar. Esses são modos de sobrevivência — não falhas de caráter. O trabalho é reconhecer o modo, entender o que ele tenta proteger e escolher uma resposta com mais espaço.
         </p>
       </div>
-      <div className="rounded-3xl p-4 mt-3" style={{ backgroundColor: B.sky }}>
+      <div className="rounded-3xl p-4 mt-3" style={{ backgroundColor:B.sky }}>
         <p className="text-sm text-neutral-600 leading-relaxed">
-          <b style={{ color: B.ink }}>Como usar:</b> navegue pelos módulos no seu ritmo, responda as perguntas com honestidade e leve o relatório final para a sessão.
+          <b style={{ color:B.ink }}>Como usar:</b> navegue pelos módulos no seu ritmo, responda as perguntas com honestidade e leve o relatório final para a sessão.
         </p>
       </div>
       <Btn onClick={onNext} className="w-full mt-5">
@@ -378,40 +455,43 @@ function Focus({ selectedGoal, setSelectedGoal, setRecords }) {
   return (
     <Card>
       <SectionHeader iconName="Compass" badge="trilha adaptativa" title="1 · Escolha seu foco" subtitle="A trilha se adapta ao que você quer entender agora." />
+      <StepHint steps={["Escolha uma trilha","Leia","Responda","Registre","Avance"]} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {Object.entries(focusTracks).map(([id, item]) => (
           <button key={id} onClick={() => { setSelectedGoal(id); setAnswers({}); setSaved(false); }}
             className="text-left rounded-3xl border-2 p-4 bg-white transition"
-            style={{ borderColor: selectedGoal===id ? B.mintDark : "#e5e7eb" }}>
-            <p className="font-bold" style={{ color: B.ink }}>{item.title}</p>
+            style={{ borderColor:selectedGoal===id ? B.mintDark : "#e5e7eb" }}>
+            <p className="font-bold" style={{ color:B.ink }}>{item.title}</p>
             <p className="text-xs text-neutral-500 mt-1">{item.short}</p>
           </button>
         ))}
       </div>
 
+      {!track && <SelectPrompt label="Escolha uma trilha acima para começar." />}
+
       {track && (
         <div className="mt-5 space-y-4">
-          <div className="rounded-3xl p-4" style={{ backgroundColor: B.cream }}>
-            <h3 className="font-bold text-lg" style={{ color: B.ink }}>{track.title}</h3>
-            {[["O que é", track.definition],["O que não é", track.not],["Por que pode acontecer", track.why],["Contraponto saudável", track.healthy],["Micro-habilidade", track.micro]].map(([label, val]) => (
-              <p key={label} className="mt-2 text-neutral-700"><b>{label}:</b> {val}</p>
+          <div className="rounded-3xl p-4" style={{ backgroundColor:B.cream }}>
+            <h3 className="font-bold text-lg" style={{ color:B.ink }}>{track.title}</h3>
+            {[["O que é",track.definition],["O que não é",track.not],["Por que pode acontecer",track.why],["Contraponto saudável",track.healthy],["Micro-habilidade",track.micro]].map(([label,val]) => (
+              <p key={label} className="mt-2 text-neutral-700 text-sm"><b>{label}:</b> {val}</p>
             ))}
           </div>
-          <div className="rounded-3xl p-3" style={{ backgroundColor: B.sky }}>
-            <p className="font-bold" style={{ color: B.ink }}>Exercícios PBL</p>
-            <p className="text-sm text-neutral-600 mt-1">Leia a situação, responda e compare com o modelo possível.</p>
+          <div className="rounded-3xl p-3" style={{ backgroundColor:B.sky }}>
+            <p className="font-bold text-sm" style={{ color:B.ink }}>Exercícios PBL</p>
+            <p className="text-xs text-neutral-600 mt-1">Leia a situação, responda e compare com o modelo possível.</p>
           </div>
           {track.pbl.map((item, idx) => (
             <div key={idx} className="rounded-3xl border border-neutral-100 p-4">
-              <p className="font-bold" style={{ color: B.ink }}>Situação {idx + 1}</p>
-              <p className="text-neutral-700 mt-2 leading-relaxed">{item.scenario}</p>
-              <ul className="mt-3 space-y-1 text-sm text-neutral-600 list-disc pl-5">
+              <p className="font-bold text-sm" style={{ color:B.ink }}>Situação {idx+1}</p>
+              <p className="text-neutral-700 mt-2 leading-relaxed text-sm">{item.scenario}</p>
+              <ul className="mt-3 space-y-1 text-xs text-neutral-600 list-disc pl-5">
                 {item.prompts.map(p => <li key={p}>{p}</li>)}
               </ul>
               <Textarea value={answers[idx]||""} onChange={e => setAnswers(prev => ({...prev,[idx]:e.target.value}))} placeholder="Minha resposta/reflexão..." minH="88px" />
-              <details className="mt-3 rounded-2xl p-3" style={{ backgroundColor: B.cream }}>
-                <summary className="font-semibold" style={{ color: B.coralDark }}>Ver modelo possível</summary>
-                <p className="text-neutral-700 mt-2">"{item.model}"</p>
+              <details className="mt-3 rounded-2xl p-3" style={{ backgroundColor:B.cream }}>
+                <summary className="font-semibold text-sm" style={{ color:B.coralDark }}>Ver modelo possível</summary>
+                <p className="text-neutral-700 mt-2 text-sm">"{item.model}"</p>
               </details>
             </div>
           ))}
@@ -436,20 +516,21 @@ function Learn({ chapter, setRecords }) {
   return (
     <Card>
       <SectionHeader iconName={chapter.icon} badge="aprender" title={chapter.title} subtitle={data.subtitle} />
+      <StepHint steps={["Leia","Reflita","Registre","Avance"]} />
       <div className="space-y-3">
         {data.blocks.map(([heading, body], idx) => (
-          <div key={heading} className="rounded-3xl p-4" style={{ backgroundColor: idx%2===0 ? B.cream : B.sky }}>
-            <h3 className="font-bold text-base" style={{ color: B.ink }}>{heading}</h3>
+          <div key={heading} className="rounded-3xl p-4" style={{ backgroundColor:idx%2===0 ? B.cream : B.sky }}>
+            <h3 className="font-bold text-base" style={{ color:B.ink }}>{heading}</h3>
             <p className="text-neutral-700 leading-relaxed mt-1 text-sm">{body}</p>
           </div>
         ))}
       </div>
-      <div className="mt-4 rounded-3xl p-4" style={{ backgroundColor: B.rose }}>
-        <p className="font-bold" style={{ color: B.ink }}>Para guardar</p>
+      <div className="mt-4 rounded-3xl p-4" style={{ backgroundColor:B.rose }}>
+        <p className="font-bold text-sm" style={{ color:B.ink }}>Para guardar</p>
         <p className="text-neutral-700 leading-relaxed mt-1 text-sm">{data.key}</p>
       </div>
       <label className="block mt-5">
-        <span className="font-semibold text-sm" style={{ color: B.ink }}>{data.prompt}</span>
+        <span className="font-semibold text-sm" style={{ color:B.ink }}>{data.prompt}</span>
         <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Escreva uma palavra, exemplo, dúvida ou frase que quer levar para a sessão." minH="100px" />
       </label>
       <Btn outline onClick={save} className="w-full mt-3">Registrar no relatório</Btn>
@@ -477,15 +558,16 @@ function Practice({ setRecords }) {
   return (
     <Card>
       <SectionHeader iconName="Shield" badge="praticar" title="4 · Não ter garantias" subtitle="Complete frases para treinar tolerância relacional." />
-      <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor: B.rose }}>
-        <p className="font-bold text-sm" style={{ color: B.ink }}>Esperança prática</p>
+      <StepHint steps={["Leia a instrução","Complete as frases","Registre","Avance"]} />
+      <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor:B.rose }}>
+        <p className="font-bold text-sm" style={{ color:B.ink }}>Esperança prática</p>
         <p className="text-sm text-neutral-700 mt-1">Não ter garantia não significa estar sem recursos. Significa treinar clareza, espera, pedido direto, limite e reparo.</p>
       </div>
       <div className="space-y-4">
         {prompts.map((p, idx) => (
           <label key={p} className="block">
-            <span className="font-semibold text-sm" style={{ color: B.ink }}>{p}</span>
-            <Textarea value={answers[idx]||""} onChange={e => setAnswers(prev => ({...prev,[idx]:e.target.value}))} placeholder="" minH="76px" />
+            <span className="font-semibold text-sm" style={{ color:B.ink }}>{p}</span>
+            <Textarea value={answers[idx]||""} onChange={e => setAnswers(prev => ({...prev,[idx]:e.target.value}))} placeholder="" minH="72px" />
           </label>
         ))}
       </div>
@@ -509,23 +591,25 @@ function Compare({ setRecords }) {
   return (
     <Card>
       <SectionHeader iconName="MessageCircle" badge="comparar" title="8 · Comparando respostas" subtitle="Compare mente competitiva e mente cooperativa em situações reais." />
+      <StepHint steps={["Selecione uma situação","Compare as respostas","Anote","Registre","Avance"]} />
       <div className="space-y-3">
         {compareData.map(item => (
           <button key={item.situation} onClick={() => { setSelected(item); setNote(""); setSaved(false); }}
             className="w-full text-left rounded-3xl border-2 p-4 bg-white transition"
-            style={{ borderColor: selected?.situation===item.situation ? B.mintDark : "#e5e7eb" }}>
-            <h3 className="font-bold text-sm" style={{ color: B.ink }}>{item.situation}</h3>
+            style={{ borderColor:selected?.situation===item.situation ? B.mintDark : "#e5e7eb" }}>
+            <h3 className="font-bold text-sm" style={{ color:B.ink }}>{item.situation}</h3>
             <p className="text-xs text-neutral-500 mt-1">{item.vulnerability}</p>
           </button>
         ))}
       </div>
+      {!selected && <SelectPrompt label="Selecione uma situação acima para ver a comparação." />}
       {selected && (
-        <div className="mt-5 space-y-3">
-          <div className="rounded-3xl p-4" style={{ backgroundColor: B.amber }}>
+        <div className="mt-4 space-y-3">
+          <div className="rounded-3xl p-4" style={{ backgroundColor:B.amber }}>
             <p className="text-xs font-bold text-neutral-500 mb-1">Mente competitiva</p>
             <p className="text-neutral-800 text-sm">{selected.competitive}</p>
           </div>
-          <div className="rounded-3xl p-4" style={{ backgroundColor: B.sky }}>
+          <div className="rounded-3xl p-4" style={{ backgroundColor:B.sky }}>
             <p className="text-xs font-bold text-neutral-500 mb-1">Mente cooperativa</p>
             <p className="text-neutral-800 text-sm">{selected.cooperative}</p>
           </div>
@@ -552,18 +636,20 @@ function Modes({ setRecords }) {
   return (
     <Card>
       <SectionHeader iconName="AlertTriangle" badge="mapear" title="9 · Modos de sobrevivência" subtitle="Quando vulnerabilidade parece perigo, um modo pode assumir o comando." />
+      <StepHint steps={["Selecione um modo","Leia os detalhes","Anote","Registre","Avance"]} />
       <div className="space-y-3">
         {survivalModes.map(mode => (
           <button key={mode.name} onClick={() => { setSelected(mode); setNote(""); setSaved(false); }}
             className="w-full text-left rounded-3xl border-2 p-4 bg-white transition"
-            style={{ borderColor: selected?.name===mode.name ? B.mintDark : "#e5e7eb" }}>
-            <h3 className="font-bold text-sm" style={{ color: B.ink }}>{mode.name}</h3>
+            style={{ borderColor:selected?.name===mode.name ? B.mintDark : "#e5e7eb" }}>
+            <h3 className="font-bold text-sm" style={{ color:B.ink }}>{mode.name}</h3>
             <p className="text-xs text-neutral-500 mt-1">{mode.vulnerability}</p>
           </button>
         ))}
       </div>
+      {!selected && <SelectPrompt label="Selecione um modo acima para ver os detalhes." />}
       {selected && (
-        <div className="mt-5 rounded-3xl p-4 space-y-2" style={{ backgroundColor: B.cream }}>
+        <div className="mt-4 rounded-3xl p-4 space-y-2" style={{ backgroundColor:B.cream }}>
           <h3 className="font-bold text-lg">{selected.name}</h3>
           <p className="text-sm"><b>Vulnerabilidade protegida:</b> {selected.vulnerability}</p>
           <p className="text-sm"><b>Como pode chegar no outro:</b> {selected.impact}</p>
@@ -591,35 +677,37 @@ function Regulacao({ setRecords }) {
   return (
     <Card>
       <SectionHeader iconName="Wind" badge="regular" title="10 · Regulação no momento" subtitle="Ferramentas para criar espaço entre o impulso e a resposta." />
-      <div className="rounded-3xl p-4 mb-4 text-sm leading-relaxed" style={{ backgroundColor: B.rose }}>
-        <b style={{ color: B.ink }}>Por que regular antes de responder?</b> Em ativação alta, a janela de escolha fica muito estreita. Regulação não é suprimir a emoção — é criar espaço suficiente para escolher o que fazer com ela.
+      <StepHint steps={["Selecione um recurso","Leia os passos","Anote","Registre","Avance"]} />
+      <div className="rounded-3xl p-4 mb-4 text-sm leading-relaxed" style={{ backgroundColor:B.rose }}>
+        <b style={{ color:B.ink }}>Por que regular antes de responder?</b> Em ativação alta, a janela de escolha fica muito estreita. Regulação não é suprimir a emoção — é criar espaço suficiente para escolher o que fazer com ela.
       </div>
       <div className="space-y-3">
         {regulacaoExercises.map(ex => (
           <button key={ex.title} onClick={() => { setSelected(ex); setNote(""); setSaved(false); }}
             className="w-full text-left rounded-3xl border-2 p-4 bg-white transition"
-            style={{ borderColor: selected?.title===ex.title ? B.mintDark : "#e5e7eb" }}>
-            <h3 className="font-bold text-sm" style={{ color: B.ink }}>{ex.title}</h3>
+            style={{ borderColor:selected?.title===ex.title ? B.mintDark : "#e5e7eb" }}>
+            <h3 className="font-bold text-sm" style={{ color:B.ink }}>{ex.title}</h3>
             <p className="text-xs text-neutral-500 mt-1">{ex.when}</p>
           </button>
         ))}
       </div>
+      {!selected && <SelectPrompt label="Selecione um recurso acima para ver os passos." />}
       {selected && (
-        <div className="mt-5 space-y-3">
-          <div className="rounded-3xl p-4" style={{ backgroundColor: B.cream }}>
-            <h3 className="font-bold mb-2" style={{ color: B.ink }}>{selected.title}</h3>
+        <div className="mt-4 space-y-3">
+          <div className="rounded-3xl p-4" style={{ backgroundColor:B.cream }}>
+            <h3 className="font-bold mb-2" style={{ color:B.ink }}>{selected.title}</h3>
             <p className="text-xs font-semibold text-neutral-500 mb-3">Quando usar: {selected.when}</p>
             <ol className="space-y-2">
               {selected.steps.map((step, i) => (
                 <li key={i} className="flex gap-2 text-sm text-neutral-700">
-                  <span className="font-bold shrink-0" style={{ color: B.mintDark }}>{i+1}.</span>
+                  <span className="font-bold shrink-0" style={{ color:B.mintDark }}>{i+1}.</span>
                   <span>{step}</span>
                 </li>
               ))}
             </ol>
           </div>
-          <div className="rounded-3xl p-4 text-sm" style={{ backgroundColor: B.sky }}>
-            <p className="font-semibold" style={{ color: B.ink }}>Para lembrar</p>
+          <div className="rounded-3xl p-4 text-sm" style={{ backgroundColor:B.sky }}>
+            <p className="font-semibold" style={{ color:B.ink }}>Para lembrar</p>
             <p className="text-neutral-700 mt-1">{selected.anchor}</p>
           </div>
           <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Em qual situação quero usar esse recurso?" minH="80px" />
@@ -645,18 +733,20 @@ function Cues({ setRecords }) {
   return (
     <Card>
       <SectionHeader iconName="HelpCircle" badge="mentalizar" title="12 · Pistas sociais" subtitle="Separe fato, interpretação e checagem cuidadosa." />
+      <StepHint steps={["Selecione uma pista","Leia fato x interpretação","Anote","Registre","Avance"]} />
       <div className="space-y-3">
         {cueExamples.map(cue => (
           <button key={cue[0]} onClick={() => { setSelected(cue); setAnswer(""); setSaved(false); }}
             className="w-full text-left rounded-3xl border-2 p-4 bg-white transition"
-            style={{ borderColor: selected?.[0]===cue[0] ? B.mintDark : "#e5e7eb" }}>
-            <p className="font-bold text-sm" style={{ color: B.ink }}>{cue[0]}</p>
+            style={{ borderColor:selected?.[0]===cue[0] ? B.mintDark : "#e5e7eb" }}>
+            <p className="font-bold text-sm" style={{ color:B.ink }}>{cue[0]}</p>
           </button>
         ))}
       </div>
+      {!selected && <SelectPrompt label="Selecione uma pista acima para analisar." />}
       {selected && (
-        <div className="mt-5 space-y-3">
-          <div className="rounded-3xl p-4 text-sm space-y-2" style={{ backgroundColor: B.cream }}>
+        <div className="mt-4 space-y-3">
+          <div className="rounded-3xl p-4 text-sm space-y-2" style={{ backgroundColor:B.cream }}>
             <p><b>Fato observável:</b> {selected[1]}</p>
             <p><b>Interpretações possíveis:</b> {selected[2]}</p>
             <p><b>Frase de checagem:</b> "{selected[3]}"</p>
@@ -680,9 +770,7 @@ function Cases({ selectedGoal, setRecords }) {
     return (
       <Card>
         <SectionHeader iconName="BookOpen" badge="PBL" title="13 · PBL do meu foco" subtitle="Prática baseada em situações reais." />
-        <div className="rounded-3xl p-5 text-center text-sm text-neutral-600 leading-relaxed" style={{ backgroundColor: B.soft }}>
-          Você ainda não escolheu um foco. Volte ao <b>módulo 1</b> e selecione a trilha que mais faz sentido para você agora.
-        </div>
+        <SelectPrompt label="Você ainda não escolheu um foco. Volte ao módulo 1 e selecione uma trilha." />
       </Card>
     );
   }
@@ -697,17 +785,18 @@ function Cases({ selectedGoal, setRecords }) {
   return (
     <Card>
       <SectionHeader iconName="BookOpen" badge="PBL" title="13 · PBL do meu foco" subtitle={`Foco: ${track.title}`} />
+      <StepHint steps={["Leia a situação","Responda abaixo","Compare o modelo","Salve","Avance"]} />
       <ProgressBar value={((idx+1)/track.pbl.length)*100} />
       <p className="text-xs text-neutral-500 mt-2 mb-4">Situação {idx+1} de {track.pbl.length}</p>
-      <div className="rounded-3xl p-4" style={{ backgroundColor: B.cream }}>
+      <div className="rounded-3xl p-4" style={{ backgroundColor:B.cream }}>
         <p className="text-neutral-700 leading-relaxed text-sm">{item.scenario}</p>
-        <ul className="mt-3 list-disc pl-5 text-sm text-neutral-600 space-y-1">
+        <ul className="mt-3 list-disc pl-5 text-xs text-neutral-600 space-y-1">
           {item.prompts.map(p => <li key={p}>{p}</li>)}
         </ul>
       </div>
       <Textarea value={answer} onChange={e => { setAnswer(e.target.value); setSaved(false); }} placeholder="Minha resposta..." minH="100px" />
-      <details className="mt-3 rounded-2xl p-3" style={{ backgroundColor: B.sky }}>
-        <summary className="font-semibold text-sm" style={{ color: B.coralDark }}>Ver modelo possível</summary>
+      <details className="mt-3 rounded-2xl p-3" style={{ backgroundColor:B.sky }}>
+        <summary className="font-semibold text-sm" style={{ color:B.coralDark }}>Ver modelo possível</summary>
         <p className="mt-2 text-sm text-neutral-700">"{item.model}"</p>
       </details>
       <div className="flex gap-2 mt-4">
@@ -744,11 +833,12 @@ function MapPage({ setRecords }) {
   return (
     <Card>
       <SectionHeader iconName="Compass" badge="registro guiado" title="14 · Meu mapa relacional" subtitle="Use uma situação real para observar vulnerabilidade, pista, modo e alternativa." />
+      <StepHint steps={["Pense em uma situação real","Preencha os campos","Registre","Avance"]} />
       <div className="space-y-4">
         {fields.map(([label, placeholder]) => (
           <label key={label} className="block">
-            <span className="font-semibold text-sm capitalize" style={{ color: B.ink }}>{label}</span>
-            <Textarea value={answers[label]||""} onChange={e => setAnswers(prev => ({...prev,[label]:e.target.value}))} placeholder={placeholder} minH="76px" />
+            <span className="font-semibold text-sm capitalize" style={{ color:B.ink }}>{label}</span>
+            <Textarea value={answers[label]||""} onChange={e => setAnswers(prev => ({...prev,[label]:e.target.value}))} placeholder={placeholder} minH="72px" />
           </label>
         ))}
       </div>
@@ -770,21 +860,21 @@ function Report({ records, customNotes, setCustomNotes, selectedGoal }) {
         </Btn>
       </div>
       <div className="print-area mt-6">
-        <h1 className="text-2xl font-bold" style={{ color: B.ink }}>Mapa dos Vínculos · Relatório</h1>
-        {goal && <div className="rounded-3xl p-4 my-4" style={{ backgroundColor: B.amber }}><b>Foco:</b> {goal.title} — {goal.short}</div>}
-        <div className="rounded-3xl p-4 mb-5" style={{ backgroundColor: B.soft }}>
+        <h1 className="text-2xl font-bold" style={{ color:B.ink }}>Mapa dos Vínculos · Relatório</h1>
+        {goal && <div className="rounded-3xl p-4 my-4" style={{ backgroundColor:B.amber }}><b>Foco:</b> {goal.title} — {goal.short}</div>}
+        <div className="rounded-3xl p-4 mb-5" style={{ backgroundColor:B.soft }}>
           <b>Nota para a sessão:</b>
           <p className="whitespace-pre-wrap mt-1">{customNotes||"Sem anotação final."}</p>
         </div>
         <div className="space-y-3">
           {records.length===0
             ? <p className="text-neutral-500">Nenhuma resposta registrada ainda.</p>
-            : records.map((r,idx) => (
-              <div key={idx} className="rounded-3xl border border-neutral-100 p-4 break-inside-avoid">
+            : records.map((r,i) => (
+              <div key={i} className="rounded-3xl border border-neutral-100 p-4 break-inside-avoid">
                 <p className="text-xs uppercase text-neutral-400">{r.type} · {r.module}</p>
                 <p className="font-bold mt-1 text-sm">{r.prompt}</p>
                 <p className="mt-1 whitespace-pre-wrap text-sm"><b>Resposta:</b> {r.answer}</p>
-                {r.feedback && <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-500"><b>Ideia-chave:</b> {r.feedback}</p>}
+                {r.feedback && <p className="mt-1 whitespace-pre-wrap text-xs text-neutral-500"><b>Ideia-chave:</b> {r.feedback}</p>}
               </div>
             ))
           }
@@ -801,14 +891,14 @@ function Drawer({ open, onClose, step, setStep }) {
       <button onClick={onClose} className="absolute inset-0 w-full h-full cursor-default border-0 bg-transparent" />
       <div className="absolute right-0 top-0 h-full w-[86%] max-w-sm bg-white shadow-2xl p-4 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <p className="font-bold text-lg" style={{ color: B.ink }}>Menu</p>
+          <p className="font-bold text-lg" style={{ color:B.ink }}>Menu</p>
           <Btn ghost onClick={onClose}><Ic name="X" size={18} /></Btn>
         </div>
         <div className="space-y-1">
           {chapters.map((c, i) => (
             <button key={c.id} onClick={() => { setStep(i); onClose(); }}
               className="w-full text-left rounded-2xl p-3 text-sm font-medium transition"
-              style={{ backgroundColor: i===step ? "#ecfdf5" : "#f9fafb", border: i===step ? `1px solid ${B.mintDark}` : "1px solid transparent", color: B.ink }}>
+              style={{ backgroundColor:i===step ? "#ecfdf5":"#f9fafb", border:i===step ? `1px solid ${B.mintDark}`:"1px solid transparent", color:B.ink }}>
               {c.title}
             </button>
           ))}
@@ -820,17 +910,18 @@ function Drawer({ open, onClose, step, setStep }) {
 
 // ─── APP PRINCIPAL ────────────────────────────────────────────────────────────
 function MapaDosVinculosApp() {
-  const [step, setStep] = useState(0);
-  const [records, setRecords] = useState([]);
+  const [step, setStep]           = useState(0);
+  const [records, setRecords]     = useState([]);
   const [customNotes, setCustomNotes] = useState("");
   const [selectedGoal, setSelectedGoal] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen]   = useState(false);
+  const mainRef = useRef(null);
 
-  const current = chapters[step];
+  const current  = chapters[step];
   const progress = Math.round((step / (chapters.length-1)) * 100);
 
   function reset() {
-    if (records.length>0 && !window.confirm("Reiniciar vai apagar todas as respostas. Continuar?")) return;
+    if (records.length > 0 && !window.confirm("Reiniciar vai apagar todas as respostas. Continuar?")) return;
     setStep(0); setRecords([]); setCustomNotes(""); setSelectedGoal("");
   }
 
@@ -840,24 +931,28 @@ function MapaDosVinculosApp() {
   return (
     <div className="h-screen overflow-hidden p-3 sm:p-6"
       style={{ background:`radial-gradient(circle at top left,${B.mint}70,transparent 34%),linear-gradient(180deg,${B.cream},#ffffff)` }}>
+
       <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} step={step} setStep={setStep} />
+      <ScrollHint mainRef={mainRef} step={step} />
+
       <div className="mx-auto max-w-3xl h-full flex flex-col">
 
         {/* HEADER */}
-        <header className="no-print shrink-0 rounded-3xl p-3 shadow-sm mb-3" style={{ backgroundColor:"rgba(255,255,255,0.88)" }}>
+        <header className="no-print shrink-0 rounded-3xl p-3 shadow-sm mb-3"
+          style={{ backgroundColor:"rgba(255,255,255,0.90)" }}>
           <div className="flex items-center justify-between gap-2">
             <Btn ghost onClick={() => setMenuOpen(true)}>
-              <Ic name="Menu" size={18} /> <span className="text-sm">Menu</span>
+              <Ic name="Menu" size={18} /><span className="text-sm ml-1">Menu</span>
             </Btn>
             <div className="text-center">
               <p className="text-[10px] uppercase tracking-widest text-neutral-400">psicoeducação</p>
-              <p className="font-bold text-sm" style={{ color: B.ink }}>Mapa dos Vínculos</p>
+              <p className="font-bold text-sm" style={{ color:B.ink }}>Mapa dos Vínculos</p>
             </div>
-            <Btn ghost onClick={reset} style={{ minWidth:40 }}>
+            <Btn ghost onClick={reset} title="Reiniciar">
               <Ic name="Refresh" size={16} />
             </Btn>
           </div>
-          {step>0 && (
+          {step > 0 && (
             <div className="mt-3">
               <div className="flex justify-between text-xs text-neutral-500 mb-1">
                 <span>{current.title}</span><span>{progress}%</span>
@@ -867,8 +962,9 @@ function MapaDosVinculosApp() {
           )}
         </header>
 
-        {/* MAIN */}
-        <main className="flex-1 overflow-y-auto overscroll-contain pb-24" style={{ scrollbarWidth:"thin" }}>
+        {/* CONTEÚDO */}
+        <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain pb-24"
+          style={{ scrollbarWidth:"thin" }}>
           <div key={current.id} className="page-in">
             {current.type==="home"      && <Home onNext={goNext} />}
             {current.type==="focus"     && <Focus selectedGoal={selectedGoal} setSelectedGoal={setSelectedGoal} setRecords={setRecords} />}
@@ -885,18 +981,26 @@ function MapaDosVinculosApp() {
         </main>
 
         {/* FOOTER NAV */}
-        {step>0 && (
-          <footer className="no-print fixed bottom-0 left-0 right-0 border-t p-3" style={{ backgroundColor:"rgba(255,255,255,0.95)" }}>
-            <div className="mx-auto max-w-3xl flex gap-2">
-              <Btn outline onClick={goBack} className="flex-1">
-                <Ic name="ArrowLeft" size={16} /> Voltar
-              </Btn>
-              <Btn onClick={goNext} disabled={step===chapters.length-1} className="flex-[1.3]">
-                {step===chapters.length-1 ? "Final" : "Avançar"} <Ic name="ArrowRight" size={16} color="white" />
-              </Btn>
+        {step > 0 && (
+          <footer className="no-print fixed bottom-0 left-0 right-0 border-t p-3"
+            style={{ backgroundColor:"rgba(255,255,255,0.97)", boxShadow:"0 -2px 12px rgba(0,0,0,0.07)" }}>
+            <div className="mx-auto max-w-3xl">
+              <p className="text-center text-xs text-neutral-400 mb-2">
+                Módulo {step} de {chapters.length-1} · {current.title}
+              </p>
+              <div className="flex gap-2">
+                <Btn outline onClick={goBack} className="flex-1">
+                  <Ic name="ArrowLeft" size={16} /> Voltar
+                </Btn>
+                <Btn onClick={goNext} disabled={step===chapters.length-1} className="flex-[1.6]"
+                  style={{ backgroundColor:B.coralDark, boxShadow:`0 4px 14px ${B.coralDark}55` }}>
+                  {step===chapters.length-1 ? "Final" : "Próximo módulo"} <Ic name="ArrowRight" size={16} color="white" />
+                </Btn>
+              </div>
             </div>
           </footer>
         )}
+
       </div>
     </div>
   );
